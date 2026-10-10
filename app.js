@@ -241,6 +241,7 @@ function bukaLayarAplikasi() {
     document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = currentProfile?.store_name || 'KASIR ONLINE');
     document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = currentProfile?.store_name || 'KASIR ONLINE');
 
+    inisialisasiPengaturan();
     pindahTab('dashboard');
     muatProduk();
     muatUlangSemuaData();
@@ -373,7 +374,7 @@ document.getElementById('form-input-sandi-baru')?.addEventListener('submit', asy
   }
 });
 
-// ================= PANEL SUPER ADMIN LOGIC =================
+// ================= PANEL SUPER ADMIN =================
 async function muatDataAdmin() {
   try {
     const { data, error } = await supabaseClient
@@ -553,7 +554,6 @@ function filterProduk() {
   renderKartu(filtered);
 }
 
-// Event listener pencarian menu langsung aktif saat diketik
 document.getElementById('cari-produk')?.addEventListener('input', () => {
   filterProduk();
 });
@@ -990,7 +990,6 @@ function renderKeranjang() {
   if (totalEl) totalEl.innerText = 'Rp ' + totalNominal.toLocaleString('id-ID');
   if (totalElMobile) totalElMobile.innerText = 'Rp ' + totalNominal.toLocaleString('id-ID');
 
-  // Kontrol Floating Bar untuk Tampilan Mobile
   if (floatingBar) {
     if (totalItemCount > 0) {
       floatingBar.classList.remove('hidden');
@@ -1077,9 +1076,10 @@ window.bukaModalPembayaran = function() {
   document.getElementById('struk-preview-tipe').innerText = tipePesananAktif + (mejaP ? ' • ' + mejaP : '');
   document.getElementById('struk-preview-pelanggan').innerText = namaP ? 'Atas Nama: ' + namaP : 'Pelanggan Umum';
 
-  const qrisFotoGaleri = localStorage.getItem('pos_qris_foto_base64');
-  if (qrisFotoGaleri) {
-    document.getElementById('img-qris-display').src = qrisFotoGaleri;
+  // Sinkronisasi gambar QRIS: Prioritas utama dari profil Supabase
+  const qrisFotoSupabase = currentProfile?.qris_image || localStorage.getItem('pos_qris_foto_base64');
+  if (qrisFotoSupabase) {
+    document.getElementById('img-qris-display').src = qrisFotoSupabase;
   } else {
     document.getElementById('img-qris-display').src = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS_' + tot;
   }
@@ -1986,28 +1986,36 @@ window.pindahTab = function(tabName) {
   muatUlangSemuaData();
 };
 
-// ================= PENGATURAN TOKO =================
+// ================= PENGATURAN TOKO & SYNC CLOUD SUPABASE =================
 const inputToko = document.getElementById('setting-nama-toko');
 const inputFooter = document.getElementById('setting-footer-struk');
 
 function inisialisasiPengaturan() {
   if (inputToko && inputFooter) {
-    inputToko.value = localStorage.getItem('pos_nama') || (currentProfile?.store_name || 'KASIR ONLINE');
-    inputFooter.value = localStorage.getItem('pos_foot') || 'Terima kasih atas kunjungan Anda!';
-    document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = inputToko.value);
-    document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = inputToko.value);
+    // Ambil nilai dari database Supabase sebagai sumber utama
+    const storeName = currentProfile?.store_name || localStorage.getItem('pos_nama') || 'KASIR ONLINE';
+    const footerText = currentProfile?.receipt_footer || localStorage.getItem('pos_foot') || 'Terima kasih atas kunjungan Anda!';
+
+    inputToko.value = storeName;
+    inputFooter.value = footerText;
+
+    document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = storeName);
+    document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = storeName);
     const ft = document.getElementById('struk-footer-text');
-    if (ft) ft.innerText = inputFooter.value;
+    if (ft) ft.innerText = footerText;
   }
 
-  const savedQrisFoto = localStorage.getItem('pos_qris_foto_base64');
-  if (savedQrisFoto) {
-    document.getElementById('setting-qris-base64').value = savedQrisFoto;
+  // Tampilkan foto QRIS dari database Supabase
+  const cloudQris = currentProfile?.qris_image || localStorage.getItem('pos_qris_foto_base64');
+  if (cloudQris) {
+    document.getElementById('setting-qris-base64').value = cloudQris;
     const previewImg = document.getElementById('preview-setting-qris-img');
     const placeholder = document.getElementById('preview-setting-qris-placeholder');
-    previewImg.src = savedQrisFoto;
-    previewImg.classList.remove('hidden');
-    placeholder.classList.add('hidden');
+    if (previewImg && placeholder) {
+      previewImg.src = cloudQris;
+      previewImg.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    }
   }
 }
 
@@ -2029,26 +2037,57 @@ window.tanganiUploadQRISGaleri = function(event) {
 };
 
 document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', async () => {
-  localStorage.setItem('pos_nama', inputToko.value);
-  localStorage.setItem('pos_foot', inputFooter.value);
-  
-  const fotoQris = document.getElementById('setting-qris-base64').value;
-  if (fotoQris) {
-    localStorage.setItem('pos_qris_foto_base64', fotoQris);
-  }
+  const btn = document.getElementById('btn-simpan-pengaturan');
+  btn.disabled = true;
+  btn.innerText = 'Menyimpan ke Cloud...';
 
+  const namaBaru = inputToko.value.trim() || 'KASIR ONLINE';
+  const footerBaru = inputFooter.value.trim() || 'Terima kasih atas kunjungan Anda!';
+  const fotoQris = document.getElementById('setting-qris-base64').value || null;
+
+  // Simpan ke localStorage sebagai cadangan offline
+  localStorage.setItem('pos_nama', namaBaru);
+  localStorage.setItem('pos_foot', footerBaru);
+  if (fotoQris) localStorage.setItem('pos_qris_foto_base64', fotoQris);
+
+  // Simpan langsung ke Supabase user_profiles
   if (currentUser) {
-    await supabaseClient
+    const { error } = await supabaseClient
       .from('user_profiles')
-      .update({ store_name: inputToko.value })
+      .update({
+        store_name: namaBaru,
+        receipt_footer: footerBaru,
+        qris_image: fotoQris
+      })
       .eq('id', currentUser.id);
+
+    if (error) {
+      alert('Gagal menyimpan ke cloud: ' + error.message);
+      btn.disabled = false;
+      btn.innerText = 'Simpan Pengaturan';
+      return;
+    }
+
+    if (currentProfile) {
+      currentProfile.store_name = namaBaru;
+      currentProfile.receipt_footer = footerBaru;
+      currentProfile.qris_image = fotoQris;
+    }
   }
 
-  document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = inputToko.value);
-  document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = inputToko.value);
+  btn.disabled = false;
+  btn.innerText = 'Simpan Pengaturan';
+
+  document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = namaBaru);
+  document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = namaBaru);
+  document.getElementById('label-user-store').innerText = namaBaru;
+  document.getElementById('sidebar-store-badge').innerText = namaBaru;
+  document.querySelectorAll('.mobile-store-badge').forEach(e => e.innerText = namaBaru);
+
   const ft = document.getElementById('struk-footer-text');
-  if (ft) ft.innerText = inputFooter.value;
-  alert('Pengaturan toko dan foto QRIS berhasil disimpan!');
+  if (ft) ft.innerText = footerBaru;
+
+  alert('Pengaturan toko dan foto QRIS berhasil disimpan ke Supabase! QRIS sekarang otomatis sinkron di HP dan Laptop.');
 });
 
 // ================= RESERVASI =================
@@ -2110,5 +2149,4 @@ document.getElementById('form-reservasi-baru')?.addEventListener('submit', async
   }
 });
 
-inisialisasiPengaturan();
 cekSesiAktif();
