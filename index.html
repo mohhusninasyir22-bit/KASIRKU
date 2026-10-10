@@ -26,14 +26,15 @@
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
 
-  <!-- ================= AUTH VIEW ================= -->
+  <!-- ================= AUTH VIEW (LOGIN, REGISTER, LUPA SANDI) ================= -->
   <div id="view-auth" class="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-slate-100 via-emerald-50 to-teal-100">
     <div class="bg-white border border-slate-200 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-xl">
       <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500 text-white shadow-lg mb-3">
           <i data-lucide="store" class="w-7 h-7"></i>
         </div>
-        <h1 class="text-2xl font-black text-slate-800 tracking-tight header-brand-text">KASIR ONLINE</h1>
+        <!-- JUDUL HALAMAN LOGIN TERKUNCI STATIS SEBAGAI KASIR ONLINE -->
+        <h1 id="brand-auth-title" class="text-2xl font-black text-slate-800 tracking-tight">KASIR ONLINE</h1>
         <p class="text-slate-500 text-xs mt-1" id="auth-subtitle">Masuk ke sistem kasir toko Anda</p>
       </div>
 
@@ -215,7 +216,8 @@
           <i data-lucide="store" class="w-5 h-5"></i>
         </div>
         <div>
-          <h1 class="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-tight header-brand-text truncate max-w-[170px]">KASIR ONLINE</h1>
+          <!-- NAMA TOKO KHUSUS HEADER MOBILE -->
+          <h1 class="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-tight app-store-name-text truncate max-w-[170px]">Nama Toko</h1>
           <div class="flex items-center space-x-1 mt-0.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mobile-store-badge">Aktif</span>
@@ -231,7 +233,7 @@
     <!-- BACKDROP GELAP UNTUK DRAWER MOBILE -->
     <div id="mobile-sidebar-backdrop" onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden transition-opacity md:hidden"></div>
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR DESKTOP -->
     <aside id="sidebar-app" class="fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:static w-72 md:w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-2xl md:shadow-none select-none z-50 md:z-30 transition-transform duration-300 ease-in-out">
       <div>
         <div class="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -240,7 +242,8 @@
               <i data-lucide="store" class="w-5 h-5"></i>
             </div>
             <div>
-              <h1 class="font-black text-slate-900 text-sm tracking-tight leading-tight header-brand-text">KASIR ONLINE</h1>
+              <!-- NAMA TOKO KHUSUS SIDEBAR LAPTOP -->
+              <h1 class="font-black text-slate-900 text-sm tracking-tight leading-tight app-store-name-text">Nama Toko</h1>
               <div class="flex items-center space-x-1.5 mt-0.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider" id="sidebar-store-badge">Toko Aktif</span>
@@ -302,7 +305,6 @@
       
       <!-- 1. DASHBOARD RINGKASAN -->
       <section id="tab-content-dashboard" class="hidden p-4 sm:p-8 space-y-5 sm:space-y-6 max-w-7xl w-full mx-auto">
-        <!-- Header Rapi Responsif -->
         <div class="flex items-center justify-between gap-3">
           <div>
             <h2 class="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">Dashboard Ringkasan</h2>
@@ -353,7 +355,6 @@
             </div>
           </div>
 
-          <!-- Tabel Responsif Anti Terpotong -->
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs whitespace-nowrap min-w-[650px]">
               <thead>
@@ -378,7 +379,6 @@
       <!-- 2. MENU KASIR -->
       <section id="tab-content-menu" class="p-3 sm:p-5 h-full flex flex-col justify-between">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 max-w-[1600px] w-full mx-auto h-full">
-          <!-- Kolom Katalog Menu -->
           <div class="lg:col-span-7 flex flex-col space-y-4">
             <div class="bg-white border border-slate-200 p-3 sm:p-4 rounded-3xl shadow-sm space-y-3">
               <div class="flex flex-col sm:flex-row gap-2.5 items-center justify-between">
@@ -413,7 +413,7 @@
             </div>
           </div>
 
-          <!-- Panel Pesanan Sekarang (Desktop Tetap Terlihat di Kanan, Mobile Disembunyikan dan Muncul via Modal/Sheet) -->
+          <!-- Panel Pesanan Sekarang (Desktop) -->
           <div class="hidden lg:flex lg:col-span-5 bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex-col justify-between h-[84vh]">
             <div class="flex flex-col h-full overflow-hidden">
               <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-2.5">
@@ -475,7 +475,7 @@
           </div>
         </div>
 
-        <!-- FLOATING CHECKOUT BAR (KHUSUS LAYAR HP SAAT ADA ITEM DI KERANJANG) -->
+        <!-- FLOATING CHECKOUT BAR (KHUSUS MOBILE) -->
         <div id="floating-checkout-bar" class="lg:hidden fixed bottom-4 inset-x-4 z-40 hidden">
           <button onclick="bukaSheetPesananMobile()" class="w-full bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-2xl shadow-xl flex items-center justify-between border border-slate-700/50 transition active:scale-98">
             <div class="flex items-center space-x-3 text-left">
@@ -704,7 +704,6 @@
             <h2 class="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">Reservasi & Booking Meja</h2>
             <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">Daftar pemesanan tempat pelanggan terjadwal</p>
           </div>
-          <!-- Teks '+' Telah Dihapus Murni 'Buat Reservasi' -->
           <button id="btn-buka-modal-reservasi" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 transition active:scale-95 shrink-0">
             <i data-lucide="calendar-plus" class="w-4 h-4"></i>
             <span>Buat Reservasi</span>
@@ -1129,6 +1128,7 @@
   <div id="modal-struk-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div id="modal-struk" class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl font-mono text-xs border border-slate-200">
       <div class="text-center border-b border-dashed pb-4">
+        <!-- NAMA TOKO KHUSUS KOP STRUK BELANJA -->
         <h3 class="font-extrabold text-sm uppercase struk-store-name">KASIR ONLINE</h3>
         <p class="text-[10px] text-slate-400 mt-0.5" id="struk-tanggal"></p>
         <p class="text-[10px] text-slate-400">TRX: <span id="struk-id"></span></p>

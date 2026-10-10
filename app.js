@@ -220,6 +220,22 @@ authForm.addEventListener('submit', async (e) => {
   }
 });
 
+function terapkanNamaTokoKeUI(namaToko) {
+  const storeNameFinal = namaToko || 'Toko Saya';
+  
+  // HANYA perbarui elemen header aplikasi dan kop struk, TIDAK menyentuh halaman login
+  document.querySelectorAll('.app-store-name-text').forEach(e => e.innerText = storeNameFinal);
+  document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = storeNameFinal);
+  
+  const elLabelStore = document.getElementById('label-user-store');
+  if (elLabelStore) elLabelStore.innerText = storeNameFinal;
+  
+  const elBadgeDesk = document.getElementById('sidebar-store-badge');
+  if (elBadgeDesk) elBadgeDesk.innerText = storeNameFinal;
+  
+  document.querySelectorAll('.mobile-store-badge').forEach(e => e.innerText = storeNameFinal);
+}
+
 function bukaLayarAplikasi() {
   btnAuthSubmit.disabled = false;
   viewAuth.classList.add('hidden');
@@ -234,12 +250,9 @@ function bukaLayarAplikasi() {
     viewPos.classList.remove('hidden');
 
     document.getElementById('label-user').innerText = currentProfile?.full_name || currentUser.email;
-    document.getElementById('label-user-store').innerText = currentProfile?.store_name || 'Kasir Toko';
-    document.getElementById('sidebar-store-badge').innerText = currentProfile?.store_name || 'Toko Aktif';
-    
-    document.querySelectorAll('.mobile-store-badge').forEach(e => e.innerText = currentProfile?.store_name || 'Aktif');
-    document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = currentProfile?.store_name || 'KASIR ONLINE');
-    document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = currentProfile?.store_name || 'KASIR ONLINE');
+
+    // Terapkan nama toko pengguna ke seluruh header dashboard
+    terapkanNamaTokoKeUI(currentProfile?.store_name);
 
     inisialisasiPengaturan();
     pindahTab('dashboard');
@@ -632,10 +645,10 @@ function renderKategoriTabs() {
         </button>
         <div class="flex items-center pr-1.5 space-x-0.5 opacity-60 hover:opacity-100 transition">
           <button onclick="event.stopPropagation(); editNamaKategori('${k}', ${idx})" class="p-1 rounded-md hover:bg-black/10 transition" title="Ubah Nama">
-            <i data-lucide="pencil" class="w-3 h-3"></i>
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
           </button>
           <button onclick="event.stopPropagation(); hapusKategori('${k}')" class="p-1 rounded-md hover:bg-rose-500 hover:text-white transition" title="Hapus Kategori">
-            <i data-lucide="x" class="w-3 h-3"></i>
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       </div>
@@ -1076,7 +1089,6 @@ window.bukaModalPembayaran = function() {
   document.getElementById('struk-preview-tipe').innerText = tipePesananAktif + (mejaP ? ' • ' + mejaP : '');
   document.getElementById('struk-preview-pelanggan').innerText = namaP ? 'Atas Nama: ' + namaP : 'Pelanggan Umum';
 
-  // Sinkronisasi gambar QRIS: Prioritas utama dari profil Supabase
   const qrisFotoSupabase = currentProfile?.qris_image || localStorage.getItem('pos_qris_foto_base64');
   if (qrisFotoSupabase) {
     document.getElementById('img-qris-display').src = qrisFotoSupabase;
@@ -1992,20 +2004,18 @@ const inputFooter = document.getElementById('setting-footer-struk');
 
 function inisialisasiPengaturan() {
   if (inputToko && inputFooter) {
-    // Ambil nilai dari database Supabase sebagai sumber utama
-    const storeName = currentProfile?.store_name || localStorage.getItem('pos_nama') || 'KASIR ONLINE';
+    const storeName = currentProfile?.store_name || localStorage.getItem('pos_nama') || 'Toko Saya';
     const footerText = currentProfile?.receipt_footer || localStorage.getItem('pos_foot') || 'Terima kasih atas kunjungan Anda!';
 
     inputToko.value = storeName;
     inputFooter.value = footerText;
 
-    document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = storeName);
-    document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = storeName);
+    terapkanNamaTokoKeUI(storeName);
+
     const ft = document.getElementById('struk-footer-text');
     if (ft) ft.innerText = footerText;
   }
 
-  // Tampilkan foto QRIS dari database Supabase
   const cloudQris = currentProfile?.qris_image || localStorage.getItem('pos_qris_foto_base64');
   if (cloudQris) {
     document.getElementById('setting-qris-base64').value = cloudQris;
@@ -2041,16 +2051,14 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
   btn.disabled = true;
   btn.innerText = 'Menyimpan ke Cloud...';
 
-  const namaBaru = inputToko.value.trim() || 'KASIR ONLINE';
+  const namaBaru = inputToko.value.trim() || 'Toko Saya';
   const footerBaru = inputFooter.value.trim() || 'Terima kasih atas kunjungan Anda!';
   const fotoQris = document.getElementById('setting-qris-base64').value || null;
 
-  // Simpan ke localStorage sebagai cadangan offline
   localStorage.setItem('pos_nama', namaBaru);
   localStorage.setItem('pos_foot', footerBaru);
   if (fotoQris) localStorage.setItem('pos_qris_foto_base64', fotoQris);
 
-  // Simpan langsung ke Supabase user_profiles
   if (currentUser) {
     const { error } = await supabaseClient
       .from('user_profiles')
@@ -2078,16 +2086,12 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
   btn.disabled = false;
   btn.innerText = 'Simpan Pengaturan';
 
-  document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = namaBaru);
-  document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = namaBaru);
-  document.getElementById('label-user-store').innerText = namaBaru;
-  document.getElementById('sidebar-store-badge').innerText = namaBaru;
-  document.querySelectorAll('.mobile-store-badge').forEach(e => e.innerText = namaBaru);
+  terapkanNamaTokoKeUI(namaBaru);
 
   const ft = document.getElementById('struk-footer-text');
   if (ft) ft.innerText = footerBaru;
 
-  alert('Pengaturan toko dan foto QRIS berhasil disimpan ke Supabase! QRIS sekarang otomatis sinkron di HP dan Laptop.');
+  alert('Pengaturan toko berhasil disimpan! Nama toko di header sudah diperbarui dan halaman login tetap bertuliskan KASIR ONLINE.');
 });
 
 // ================= RESERVASI =================
