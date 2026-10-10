@@ -6,7 +6,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 // State Aplikasi
 let isLoginMode = true;
 let currentUser = null;
-let currentProfile = null; // Menyimpan data user_profiles
+let currentProfile = null; // Data tabel user_profiles
 
 let keranjang = [];
 let daftarProduk = [];
@@ -18,7 +18,7 @@ let metodeDipilih = 'Tunai';
 let stateOrders = [];
 let stateReservasi = [];
 let stateExpenses = [];
-let stateAdminUsers = []; // Data tabel manajemen admin
+let stateAdminUsers = [];
 
 let html5QrScanner = null;
 let scanTargetIsForm = false;
@@ -85,7 +85,7 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    // Periksa status profil pengguna di database
+    // Ambil data profil dari user_profiles
     const { data: prof, error: profErr } = await supabaseClient
       .from('user_profiles')
       .select('*')
@@ -93,14 +93,13 @@ authForm.addEventListener('submit', async (e) => {
       .single();
 
     if (profErr || !prof) {
-      // Jika belum ada profile tapi login berhasil (fallback)
       currentUser = data.user;
       currentProfile = { role: 'user', status: 'active', store_name: 'Toko Saya' };
       bukaLayarAplikasi();
       return;
     }
 
-    // Jika akun masih berstatus 'pending', cegah login
+    // Cegah akun pending login jika bukan admin
     if (prof.status === 'pending' && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
@@ -116,7 +115,7 @@ authForm.addEventListener('submit', async (e) => {
     bukaLayarAplikasi();
 
   } else {
-    // Mode Registrasi Lengkap
+    // Mode Pendaftaran Baru
     const fullName = document.getElementById('reg-fullname').value.trim();
     const storeName = document.getElementById('reg-storename').value.trim();
     const whatsapp = document.getElementById('reg-whatsapp').value.trim();
@@ -129,7 +128,6 @@ authForm.addEventListener('submit', async (e) => {
 
     btnAuthSubmit.innerText = 'Mendaftarkan akun...';
 
-    // 1. Buat User di Supabase Auth
     const { data: authData, error: authErr } = await supabaseClient.auth.signUp({
       email,
       password,
@@ -148,7 +146,6 @@ authForm.addEventListener('submit', async (e) => {
     }
 
     if (authData?.user) {
-      // 2. Simpan Data ke tabel user_profiles dengan status PENDING
       await supabaseClient.from('user_profiles').insert([{
         id: authData.user.id,
         full_name: fullName,
@@ -156,34 +153,33 @@ authForm.addEventListener('submit', async (e) => {
         whatsapp: whatsapp,
         email: email,
         role: 'user',
-        status: 'pending' // Wajib menunggu konfirmasi admin
+        status: 'pending'
       }]);
 
-      await supabaseClient.auth.signOut(); // Jangan login otomatis
+      await supabaseClient.auth.signOut();
       authForm.reset();
       tabLogin.click();
 
       btnAuthSubmit.disabled = false;
       authAlert.className = 'mt-4 text-center text-xs p-4 rounded-2xl font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 leading-relaxed';
-      authAlert.innerHTML = `✅ <strong>Pendaftaran Berhasil!</strong><br>Data toko Anda telah tersimpan dan saat ini <strong>menunggu konfirmasi dari Admin</strong>. Anda baru dapat login setelah disetujui.`;
+      authAlert.innerHTML = `✅ <strong>Pendaftaran Berhasil!</strong><br>Data toko Anda tersimpan dan saat ini <strong>menunggu persetujuan Admin</strong>. Silakan hubungi admin untuk mengaktifkan akun Anda.`;
       authAlert.classList.remove('hidden');
     }
   }
 });
 
-// Arahkan tampilan sesuai Role (Admin vs User Toko)
 function bukaLayarAplikasi() {
   btnAuthSubmit.disabled = false;
   viewAuth.classList.add('hidden');
 
   if (currentProfile?.role === 'admin') {
-    // Tampilan Khusus Super Admin
+    // Layar Super Admin
     viewAdmin.classList.remove('hidden');
     viewPos.classList.add('hidden');
     document.getElementById('label-admin-email').innerText = currentUser.email;
     muatDataAdmin();
   } else {
-    // Tampilan Kasir Toko
+    // Layar Toko Kasir
     viewAdmin.classList.add('hidden');
     viewPos.classList.remove('hidden');
 
@@ -241,16 +237,18 @@ async function cekSesiAktif() {
   refreshIcons();
 }
 
-// ================= FITUR LUPA KATA SANDI (OTP SUPABASE) =================
+// ================= FITUR LUPA KATA SANDI (MAGIC LINK SUPABASE) =================
 window.bukaModalLupaSandi = function() {
-  document.getElementById('form-minta-otp').reset();
-  document.getElementById('form-verifikasi-otp').reset();
-  document.getElementById('form-minta-otp').classList.remove('hidden');
-  document.getElementById('form-verifikasi-otp').classList.add('hidden');
+  document.getElementById('form-minta-link-reset').reset();
+  document.getElementById('form-input-sandi-baru').reset();
+  document.getElementById('form-minta-link-reset').classList.remove('hidden');
+  document.getElementById('view-menunggu-verifikasi').classList.add('hidden');
+  document.getElementById('form-input-sandi-baru').classList.add('hidden');
   document.getElementById('lupa-sandi-alert').classList.add('hidden');
 
   document.getElementById('modal-lupa-sandi-backdrop').classList.remove('hidden');
   document.getElementById('modal-lupa-sandi-backdrop').classList.add('flex');
+  refreshIcons();
 };
 
 window.tutupModalLupaSandi = function() {
@@ -258,76 +256,73 @@ window.tutupModalLupaSandi = function() {
   document.getElementById('modal-lupa-sandi-backdrop').classList.remove('flex');
 };
 
-let emailTargetLupaSandi = '';
-
-// Step 1: Kirim Kode OTP
-document.getElementById('form-minta-otp').addEventListener('submit', async (e) => {
+// 1. Kirim Tautan Atur Ulang ke Email Pengguna
+document.getElementById('form-minta-link-reset')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  emailTargetLupaSandi = document.getElementById('lupa-input-email').value.trim();
-  const btn = document.getElementById('btn-kirim-otp');
+  const emailTarget = document.getElementById('lupa-input-email').value.trim();
+  const btn = document.getElementById('btn-kirim-link');
   const alertEl = document.getElementById('lupa-sandi-alert');
 
   btn.disabled = true;
-  btn.innerText = 'Mengirim OTP...';
+  btn.innerText = 'Mengirim Tautan...';
   alertEl.classList.add('hidden');
 
-  // Supabase kirim recovery OTP ke email
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(emailTargetLupaSandi);
+  // Supabase kirim link recovery langsung ke URL aplikasi
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(emailTarget, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
 
   btn.disabled = false;
-  btn.innerText = 'Kirim Kode OTP';
+  btn.innerText = 'Kirim Tautan Verifikasi';
 
   if (error) {
     alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-medium bg-rose-50 text-rose-600 border border-rose-200 block';
-    alertEl.innerText = 'Gagal: ' + error.message;
+    alertEl.innerText = 'Gagal mengirim email: ' + error.message;
   } else {
-    document.getElementById('form-minta-otp').classList.add('hidden');
-    document.getElementById('form-verifikasi-otp').classList.remove('hidden');
+    document.getElementById('form-minta-link-reset').classList.add('hidden');
+    document.getElementById('view-menunggu-verifikasi').classList.remove('hidden');
+    refreshIcons();
   }
 });
 
-// Step 2: Verifikasi OTP & Update Password Baru
-document.getElementById('form-verifikasi-otp').addEventListener('submit', async (e) => {
+// 2. Deteksi Otomatis Saat Tautan di Email Diklik
+supabaseClient.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('modal-lupa-sandi-backdrop').classList.remove('hidden');
+    document.getElementById('modal-lupa-sandi-backdrop').classList.add('flex');
+    document.getElementById('form-minta-link-reset').classList.add('hidden');
+    document.getElementById('view-menunggu-verifikasi').classList.add('hidden');
+    document.getElementById('form-input-sandi-baru').classList.remove('hidden');
+    refreshIcons();
+  }
+});
+
+// 3. Simpan Kata Sandi Baru
+document.getElementById('form-input-sandi-baru')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const tokenOtp = document.getElementById('lupa-input-otp').value.trim();
   const sandiBaru = document.getElementById('lupa-input-pwd-baru').value;
-  const btn = document.getElementById('btn-reset-pwd-final');
+  const btn = document.getElementById('btn-simpan-sandi-baru');
   const alertEl = document.getElementById('lupa-sandi-alert');
 
   btn.disabled = true;
-  btn.innerText = 'Memverifikasi...';
+  btn.innerText = 'Menyimpan Sandi...';
   alertEl.classList.add('hidden');
 
-  // 1. Verifikasi Kode OTP token
-  const { data: verifData, error: verifErr } = await supabaseClient.auth.verifyOtp({
-    email: emailTargetLupaSandi,
-    token: tokenOtp,
-    type: 'recovery'
-  });
-
-  if (verifErr) {
-    btn.disabled = false;
-    btn.innerText = 'Verifikasi & Ganti Sandi';
-    alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-medium bg-rose-50 text-rose-600 border border-rose-200 block';
-    alertEl.innerText = 'Kode OTP salah atau kedaluwarsa!';
-    return;
-  }
-
-  // 2. Jika valid, update kata sandi
-  const { error: updErr } = await supabaseClient.auth.updateUser({
+  const { error } = await supabaseClient.auth.updateUser({
     password: sandiBaru
   });
 
   btn.disabled = false;
-  btn.innerText = 'Verifikasi & Ganti Sandi';
+  btn.innerText = 'Simpan Kata Sandi Baru';
 
-  if (updErr) {
+  if (error) {
     alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-medium bg-rose-50 text-rose-600 border border-rose-200 block';
-    alertEl.innerText = 'Gagal ubah sandi: ' + updErr.message;
+    alertEl.innerText = 'Gagal memperbarui sandi: ' + error.message;
   } else {
-    alert('Kata sandi berhasil diperbarui! Silakan login dengan sandi baru Anda.');
+    alert('Kata sandi berhasil diatur ulang! Silakan login dengan kata sandi baru Anda.');
     tutupModalLupaSandi();
     await supabaseClient.auth.signOut();
+    window.location.reload();
   }
 });
 
@@ -383,12 +378,12 @@ function renderTabelAdmin() {
     let aksiTombol = `
       <div class="inline-flex items-center space-x-1.5">
         ${isPending ? `
-          <button onclick="adminKonfirmasiUser('${u.id}')" class="p-1.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 rounded-xl transition border border-emerald-200 shadow-2xs" title="Konfirmasi / Setujui Pendaftaran">
+          <button onclick="adminKonfirmasiUser('${u.id}')" class="p-1.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 rounded-xl transition border border-emerald-200 shadow-2xs" title="Setujui Pendaftaran">
             <i data-lucide="check" class="w-4 h-4"></i>
           </button>
         ` : ''}
         ${!isAdmin ? `
-          <button onclick="adminHapusUser('${u.id}', '${u.full_name}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus User & Cabut Akses">
+          <button onclick="adminHapusUser('${u.id}', '${u.full_name}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus User">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
         ` : '<span class="text-[10px] text-slate-400 italic">Super Admin</span>'}
@@ -412,7 +407,6 @@ function renderTabelAdmin() {
 
 document.getElementById('cari-user-admin')?.addEventListener('input', renderTabelAdmin);
 
-// Konfirmasi Pendaftar (Status jadi active)
 window.adminKonfirmasiUser = async function(userId) {
   if (!confirm('Setujui dan aktifkan toko pengguna ini? Pengguna akan langsung bisa login.')) return;
 
@@ -431,7 +425,6 @@ window.adminKonfirmasiUser = async function(userId) {
   }
 };
 
-// Hapus User Toko (Akses langsung hangus)
 window.adminHapusUser = async function(userId, nama) {
   if (!confirm(`Hapus toko "${nama}"? Semua hak akses login dan data terkait akan dihapus permanen.`)) return;
 
@@ -450,8 +443,6 @@ window.adminHapusUser = async function(userId, nama) {
 };
 
 // ================= FITUR DATA TOKO (MULTI-TENANT FILTER) =================
-// Setiap query menu, transaksi, dll otomatis difilter dengan .eq('user_id', currentUser.id)
-
 async function muatProduk() {
   if (!currentUser) return;
   try {
@@ -685,6 +676,7 @@ document.getElementById('form-kelola-produk').addEventListener('submit', async (
 
   const payload = {
     user_id: currentUser.id,
+    store_id: currentUser.id, // Menjamin aman dari kendala kolom store_id
     name: nama,
     price: harga,
     category: kat,
@@ -755,7 +747,7 @@ window.tutupModalScanner = function() {
   document.getElementById('modal-scanner-backdrop').classList.remove('flex');
 };
 
-// ================= RENDER KATALOG =================
+// ================= RENDER KATALOG PRODUK =================
 function filterProduk() {
   const q = (document.getElementById('cari-produk').value || '').toLowerCase();
   const filtered = daftarProduk.filter(p => {
@@ -1422,7 +1414,7 @@ window.pulihkanTransaksi = async function(orderId) {
 };
 
 window.hapusPermanenTransaksi = async function(orderId) {
-  if (!confirm('Peringatan: Transaksi ini akan DIHAPUS PERMANEN dan tidak dapat dipulihkan lagi. Lanjutkan?')) return;
+  if (!confirm('Peringatan: Transaksi ini akan DIHAPUS PERMANEN. Lanjutkan?')) return;
   await supabaseClient.from('order_items').delete().eq('order_id', orderId);
   const { error } = await supabaseClient.from('orders').delete().eq('id', orderId).eq('user_id', currentUser.id);
   if (error) {
@@ -1434,7 +1426,7 @@ window.hapusPermanenTransaksi = async function(orderId) {
   }
 };
 
-// ================= FITUR PENGELUARAN (EXPENSES) =================
+// ================= PENGELUARAN (EXPENSES) =================
 window.bukaModalFormPengeluaran = function(editData = null) {
   document.getElementById('form-kelola-pengeluaran').reset();
   document.getElementById('form-exp-id').value = '';
@@ -1610,7 +1602,7 @@ function renderTabelKeuanganPenjualan() {
 
 document.getElementById('cari-transaksi-keuangan')?.addEventListener('input', renderTabelKeuanganPenjualan);
 
-// ================= RENDER TABEL ORDER (SEARCH DI ATAS HEADER) =================
+// ================= RENDER TABEL ORDER =================
 function renderTabelOrder() {
   const tbody = document.getElementById('order-table-body');
   const counterEl = document.getElementById('order-info-counter');
@@ -1834,13 +1826,11 @@ function updateSemuaUI() {
   const totalPengeluaran = stateExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const saldoBersih = omzet - totalPengeluaran;
 
-  // Dashboard Ringkasan
   document.getElementById('dash-omzet').innerText = 'Rp ' + omzet.toLocaleString('id-ID');
   document.getElementById('dash-transaksi').innerText = transaksiAktif.length;
   document.getElementById('dash-total-menu').innerText = daftarProduk.length;
   document.getElementById('dash-total-reservasi').innerText = stateReservasi.length;
 
-  // Keuangan
   const omzetEl = document.getElementById('keuangan-total-omzet');
   if (omzetEl) omzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
 
@@ -1945,7 +1935,6 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
     localStorage.setItem('pos_qris_foto_base64', fotoQris);
   }
 
-  // Update juga ke user_profiles di Supabase
   if (currentUser) {
     await supabaseClient
       .from('user_profiles')

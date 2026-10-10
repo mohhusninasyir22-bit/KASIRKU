@@ -81,45 +81,56 @@
     </div>
   </div>
 
-  <!-- ================= MODAL LUPA SANDI DENGAN OTP ================= -->
+  <!-- ================= MODAL LUPA SANDI DENGAN TAUTAN EMAIL ================= -->
   <div id="modal-lupa-sandi-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
         <div>
-          <h3 class="font-extrabold text-sm text-slate-900">Pemulihan Kata Sandi</h3>
-          <p class="text-[10px] text-slate-400">Verifikasi dengan kode OTP 6 digit</p>
+          <h3 class="font-extrabold text-sm text-slate-900">Atur Ulang Kata Sandi</h3>
+          <p class="text-[10px] text-slate-400">Verifikasi tautan via email terdaftar</p>
         </div>
         <button onclick="tutupModalLupaSandi()" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
       </div>
 
-      <!-- Step 1: Kirim OTP ke Email -->
-      <form id="form-minta-otp" class="space-y-3">
+      <!-- TAHAP 1: FORM INPUT EMAIL -->
+      <form id="form-minta-link-reset" class="space-y-3">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Email Terdaftar</label>
           <input type="email" id="lupa-input-email" required placeholder="Masukkan email akun Anda" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-500"/>
         </div>
-        <button type="submit" id="btn-kirim-otp" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Kirim Kode OTP</button>
+        <button type="submit" id="btn-kirim-link" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-emerald-600/20 active:scale-95">Kirim Tautan Verifikasi</button>
       </form>
 
-      <!-- Step 2: Masukkan Kode OTP & Kata Sandi Baru -->
-      <form id="form-verifikasi-otp" class="hidden space-y-3 border-t pt-3">
-        <p class="text-[11px] text-emerald-700 bg-emerald-50 p-2.5 rounded-xl font-medium">Kode OTP telah dikirim ke email. Silakan periksa inbox atau folder spam Anda.</p>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Kode OTP (6 Digit)</label>
-          <input type="text" id="lupa-input-otp" required placeholder="123456" maxlength="8" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono font-bold tracking-widest text-center focus:outline-none focus:border-emerald-500"/>
+      <!-- TAHAP 2: MENUNGGU VERIFIKASI EMAIL -->
+      <div id="view-menunggu-verifikasi" class="hidden text-center py-4 space-y-3">
+        <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto animate-bounce">
+          <i data-lucide="mail-check" class="w-6 h-6"></i>
         </div>
+        <div>
+          <h4 class="font-extrabold text-xs text-slate-900">Menunggu Verifikasi</h4>
+          <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Tautan atur ulang telah dikirim ke email Anda.<br>
+            Silakan buka email dan klik tombol <strong>Reset Password</strong>.
+          </p>
+        </div>
+        <p class="text-[10px] text-slate-400 italic">Jendela ini akan berganti setelah tautan email diklik.</p>
+      </div>
+
+      <!-- TAHAP 3: FORM INPUT KATA SANDI BARU -->
+      <form id="form-input-sandi-baru" class="hidden space-y-3 border-t pt-3">
+        <p class="text-[11px] text-emerald-700 bg-emerald-50 p-2.5 rounded-xl font-medium">Email berhasil diverifikasi! Silakan buat kata sandi baru untuk akun Anda.</p>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi Baru</label>
           <input type="password" id="lupa-input-pwd-baru" required minlength="6" placeholder="Minimal 6 karakter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-500"/>
         </div>
-        <button type="submit" id="btn-reset-pwd-final" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Verifikasi & Ganti Sandi</button>
+        <button type="submit" id="btn-simpan-sandi-baru" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-emerald-600/20 active:scale-95">Simpan Kata Sandi Baru</button>
       </form>
 
       <div id="lupa-sandi-alert" class="hidden text-[11px] p-2.5 rounded-xl text-center font-medium"></div>
     </div>
   </div>
 
-  <!-- ================= DASHBOARD SUPER ADMIN (MANAJEMEN PENGGUNA) ================= -->
+  <!-- ================= DASHBOARD SUPER ADMIN ================= -->
   <div id="view-admin" class="hidden min-h-screen flex flex-col bg-slate-100">
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-xs">
       <div class="flex items-center space-x-3">
@@ -586,7 +597,7 @@
         </div>
       </section>
 
-      <!-- 4. ORDER (SEARCH DI ATAS HEADER DENGAN JUDUL RIWAYAT ORDER) -->
+      <!-- 4. ORDER -->
       <section id="tab-content-order" class="hidden p-8 space-y-6 max-w-7xl w-full mx-auto">
         <div class="flex items-center justify-between">
           <div>
@@ -1081,7 +1092,6 @@
     </div>
   </div>
 
-  <!-- PENGHUBUNG JAVASCRIPT -->
   <script src="app.js"></script>
 </body>
 </html>
