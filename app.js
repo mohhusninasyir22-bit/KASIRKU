@@ -6,7 +6,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 // State Aplikasi
 let isLoginMode = true;
 let currentUser = null;
-let currentProfile = null; // Data tabel user_profiles
+let currentProfile = null;
 
 let keranjang = [];
 let daftarProduk = [];
@@ -29,6 +29,30 @@ function refreshIcons() {
     try { lucide.createIcons(); } catch(e){}
   }
 }
+
+// ================= TOGGLE MENU MOBILE (HP DRAWER) =================
+window.toggleMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar-app');
+  const backdrop = document.getElementById('mobile-sidebar-backdrop');
+  if (!sidebar || !backdrop) return;
+
+  const isClosed = sidebar.classList.contains('-translate-x-full');
+
+  if (isClosed) {
+    sidebar.classList.remove('-translate-x-full');
+    backdrop.classList.remove('hidden');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+    backdrop.classList.add('hidden');
+  }
+};
+
+window.tutupMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar-app');
+  const backdrop = document.getElementById('mobile-sidebar-backdrop');
+  if (sidebar) sidebar.classList.add('-translate-x-full');
+  if (backdrop) backdrop.classList.add('hidden');
+};
 
 // ================= AUTHENTICATION & MULTI-TENANT ROLE =================
 const viewAuth = document.getElementById('view-auth');
@@ -85,7 +109,6 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    // Ambil data profil dari user_profiles
     const { data: prof, error: profErr } = await supabaseClient
       .from('user_profiles')
       .select('*')
@@ -99,7 +122,6 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    // Cegah akun pending login jika bukan admin
     if (prof.status === 'pending' && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
@@ -115,7 +137,6 @@ authForm.addEventListener('submit', async (e) => {
     bukaLayarAplikasi();
 
   } else {
-    // Mode Pendaftaran Baru
     const fullName = document.getElementById('reg-fullname').value.trim();
     const storeName = document.getElementById('reg-storename').value.trim();
     const whatsapp = document.getElementById('reg-whatsapp').value.trim();
@@ -173,19 +194,19 @@ function bukaLayarAplikasi() {
   viewAuth.classList.add('hidden');
 
   if (currentProfile?.role === 'admin') {
-    // Layar Super Admin
     viewAdmin.classList.remove('hidden');
     viewPos.classList.add('hidden');
     document.getElementById('label-admin-email').innerText = currentUser.email;
     muatDataAdmin();
   } else {
-    // Layar Toko Kasir
     viewAdmin.classList.add('hidden');
     viewPos.classList.remove('hidden');
 
     document.getElementById('label-user').innerText = currentProfile?.full_name || currentUser.email;
     document.getElementById('label-user-store').innerText = currentProfile?.store_name || 'Kasir Toko';
     document.getElementById('sidebar-store-badge').innerText = currentProfile?.store_name || 'Toko Aktif';
+    
+    document.querySelectorAll('.mobile-store-badge').forEach(e => e.innerText = currentProfile?.store_name || 'Aktif');
     document.querySelectorAll('.header-brand-text').forEach(e => e.innerText = currentProfile?.store_name || 'KASIR ONLINE');
     document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = currentProfile?.store_name || 'KASIR ONLINE');
 
@@ -205,6 +226,7 @@ window.keluarSesi = async function() {
   viewAuth.classList.remove('hidden');
   document.getElementById('input-password').value = '';
   authAlert.classList.add('hidden');
+  tutupMobileMenu();
   refreshIcons();
 };
 
@@ -256,7 +278,6 @@ window.tutupModalLupaSandi = function() {
   document.getElementById('modal-lupa-sandi-backdrop').classList.remove('flex');
 };
 
-// 1. Kirim Tautan Atur Ulang ke Email Pengguna
 document.getElementById('form-minta-link-reset')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const emailTarget = document.getElementById('lupa-input-email').value.trim();
@@ -267,10 +288,7 @@ document.getElementById('form-minta-link-reset')?.addEventListener('submit', asy
   btn.innerText = 'Mengirim Tautan...';
   alertEl.classList.add('hidden');
 
-  // Supabase kirim link recovery langsung ke URL aplikasi
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(emailTarget, {
-    redirectTo: window.location.origin + window.location.pathname
-  });
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(emailTarget);
 
   btn.disabled = false;
   btn.innerText = 'Kirim Tautan Verifikasi';
@@ -285,7 +303,6 @@ document.getElementById('form-minta-link-reset')?.addEventListener('submit', asy
   }
 });
 
-// 2. Deteksi Otomatis Saat Tautan di Email Diklik
 supabaseClient.auth.onAuthStateChange(async (event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     document.getElementById('modal-lupa-sandi-backdrop').classList.remove('hidden');
@@ -297,7 +314,6 @@ supabaseClient.auth.onAuthStateChange(async (event, session) => {
   }
 });
 
-// 3. Simpan Kata Sandi Baru
 document.getElementById('form-input-sandi-baru')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const sandiBaru = document.getElementById('lupa-input-pwd-baru').value;
@@ -676,7 +692,7 @@ document.getElementById('form-kelola-produk').addEventListener('submit', async (
 
   const payload = {
     user_id: currentUser.id,
-    store_id: currentUser.id, // Menjamin aman dari kendala kolom store_id
+    store_id: currentUser.id,
     name: nama,
     price: harga,
     category: kat,
@@ -1896,6 +1912,9 @@ window.pindahTab = function(tabName) {
   const activeBtn = document.getElementById('nav-' + tabName);
   if (activeSec) activeSec.classList.remove('hidden');
   if (activeBtn) activeBtn.className = 'sidebar-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition';
+
+  // Tutup menu otomatis jika dibuka dari HP
+  tutupMobileMenu();
 
   refreshIcons();
   muatUlangSemuaData();

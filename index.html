@@ -45,7 +45,7 @@
 
       <!-- FORM LOGIN & REGISTER -->
       <form id="auth-form" class="space-y-3.5">
-        <!-- Field Tambahan Khusus Registrasi -->
+        <!-- Field Registrasi Baru -->
         <div id="reg-fields" class="hidden space-y-3">
           <div>
             <label class="block text-xs font-bold text-slate-600 mb-1">Nama Lengkap Pemilik <span class="text-rose-500">*</span></label>
@@ -152,7 +152,7 @@
       </div>
     </header>
 
-    <main class="p-6 max-w-7xl w-full mx-auto space-y-6 flex-1">
+    <main class="p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 flex-1">
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
           <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Toko Terdaftar</span>
@@ -168,12 +168,11 @@
         </div>
       </div>
 
-      <!-- Tabel Pengguna Toko -->
       <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
         <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-4">
           <div>
             <h3 class="text-sm font-extrabold text-slate-900">Daftar Pendaftar & Pengguna Toko</h3>
-            <p class="text-[11px] text-slate-400">Konfirmasi pendaftaran baru atau hapus akses toko yang kedaluwarsa</p>
+            <p class="text-[11px] text-slate-400">Konfirmasi pendaftaran baru atau kelola akun toko</p>
           </div>
           <div class="flex items-center space-x-2 w-full sm:w-auto">
             <div class="relative w-full sm:w-64">
@@ -211,23 +210,56 @@
   </div>
 
   <!-- ================= APP VIEW TOKO / USER ================= -->
-  <div id="view-pos" class="hidden min-h-screen flex flex-row overflow-hidden">
+  <div id="view-pos" class="hidden min-h-screen flex flex-col md:flex-row overflow-hidden">
     
-    <!-- SIDEBAR -->
-    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm select-none z-30">
-      <div>
-        <div class="p-6 border-b border-slate-100 flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md">
-            <i data-lucide="store" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <h1 class="font-black text-slate-900 text-sm tracking-tight leading-tight header-brand-text">KASIR ONLINE</h1>
-            <div class="flex items-center space-x-1.5 mt-0.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider" id="sidebar-store-badge">Toko Aktif</span>
-            </div>
+    <!-- HEADER KHUSUS MOBILE (HP ANDROID & IOS) -->
+    <header class="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-xs">
+          <i data-lucide="store" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-tight header-brand-text truncate max-w-[170px]">KASIR ONLINE</h1>
+          <div class="flex items-center space-x-1 mt-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mobile-store-badge">Aktif</span>
           </div>
         </div>
+      </div>
+
+      <!-- Tombol Garis Tiga (Hamburger Menu) -->
+      <button onclick="toggleMobileMenu()" class="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 transition active:scale-95" aria-label="Buka Menu">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+    </header>
+
+    <!-- BACKDROP GELAP UNTUK DRAWER MOBILE -->
+    <div id="mobile-sidebar-backdrop" onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden transition-opacity md:hidden"></div>
+
+    <!-- SIDEBAR (DRAWER RESPONSIF: MELUNCUR DI HP, PERMANEN DI DESKTOP) -->
+    <aside id="sidebar-app" class="fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:static w-72 md:w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-2xl md:shadow-none select-none z-50 md:z-30 transition-transform duration-300 ease-in-out">
+      <div>
+        <!-- Bagian Atas Sidebar -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md">
+              <i data-lucide="store" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h1 class="font-black text-slate-900 text-sm tracking-tight leading-tight header-brand-text">KASIR ONLINE</h1>
+              <div class="flex items-center space-x-1.5 mt-0.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider" id="sidebar-store-badge">Toko Aktif</span>
+              </div>
+            </div>
+          </div>
+          <!-- Tombol Tutup Sidebar Khusus Layar HP -->
+          <button onclick="toggleMobileMenu()" class="md:hidden w-8 h-8 rounded-xl bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Daftar Menu Navigasi -->
         <nav class="p-4 space-y-1.5">
           <button onclick="pindahTab('dashboard')" id="nav-dashboard" class="sidebar-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition">
             <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
@@ -256,6 +288,7 @@
         </nav>
       </div>
 
+      <!-- Sisi Bawah Sidebar: Profil Pengguna & Logout -->
       <div class="p-4 border-t border-slate-100 space-y-3">
         <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/70 flex items-center space-x-2.5">
           <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
@@ -273,14 +306,14 @@
       </div>
     </aside>
 
-    <!-- MAIN VIEWPORT -->
-    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-slate-100">
+    <!-- MAIN VIEWPORT KONTEN -->
+    <main class="flex-1 flex flex-col h-[calc(100vh-61px)] md:h-screen overflow-y-auto bg-slate-100">
       
       <!-- 1. DASHBOARD RINGKASAN -->
-      <section id="tab-content-dashboard" class="hidden p-8 space-y-6 max-w-7xl w-full mx-auto">
+      <section id="tab-content-dashboard" class="hidden p-4 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Dashboard Ringkasan</h2>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Dashboard Ringkasan</h2>
             <p class="text-xs text-slate-500 mt-1">Performa penjualan dan riwayat transaksi toko Anda</p>
           </div>
           <button onclick="muatUlangSemuaData()" class="bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 flex items-center space-x-1.5 transition">
@@ -289,37 +322,37 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-            <span class="text-xs font-bold text-slate-400 uppercase">Total Omzet Penjualan</span>
-            <p id="dash-omzet" class="text-2xl font-black text-emerald-600 mt-1">Rp 0</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Total Omzet</span>
+            <p id="dash-omzet" class="text-lg sm:text-2xl font-black text-emerald-600 mt-1">Rp 0</p>
           </div>
-          <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-            <span class="text-xs font-bold text-slate-400 uppercase">Total Transaksi</span>
-            <p id="dash-transaksi" class="text-2xl font-black text-slate-800 mt-1">0</p>
+          <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Transaksi</span>
+            <p id="dash-transaksi" class="text-lg sm:text-2xl font-black text-slate-800 mt-1">0</p>
           </div>
-          <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-            <span class="text-xs font-bold text-slate-400 uppercase">Jumlah Item Menu</span>
-            <p id="dash-total-menu" class="text-2xl font-black text-slate-800 mt-1">0</p>
+          <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Item Menu</span>
+            <p id="dash-total-menu" class="text-lg sm:text-2xl font-black text-slate-800 mt-1">0</p>
           </div>
-          <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-            <span class="text-xs font-bold text-slate-400 uppercase">Total Reservasi</span>
-            <p id="dash-total-reservasi" class="text-2xl font-black text-slate-800 mt-1">0</p>
+          <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Reservasi</span>
+            <p id="dash-total-reservasi" class="text-lg sm:text-2xl font-black text-slate-800 mt-1">0</p>
           </div>
         </div>
 
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h3 class="text-sm font-extrabold text-slate-900">Riwayat Transaksi Masuk</h3>
-              <p class="text-[11px] text-slate-400">Kelola riwayat, cetak struk, ubah rincian, atau hapus transaksi</p>
+              <p class="text-[11px] text-slate-400">Kelola riwayat transaksi dan struk pelanggan</p>
             </div>
             <div class="flex items-center space-x-2 w-full sm:w-auto">
               <div class="relative w-full sm:w-72">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                   <i data-lucide="search" class="w-4 h-4"></i>
                 </span>
-                <input type="text" id="cari-transaksi-dash" placeholder="Cari No. Order / Pelanggan / Meja..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition"/>
+                <input type="text" id="cari-transaksi-dash" placeholder="Cari No. Order / Pelanggan..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition"/>
               </div>
               <button onclick="bukaModalSampah()" class="relative bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 p-2 rounded-xl border border-slate-200 transition shrink-0" title="Buka Riwayat Sampah (30 Hari)">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -350,10 +383,10 @@
       </section>
 
       <!-- 2. MENU KASIR -->
-      <section id="tab-content-menu" class="p-5 h-full flex flex-col justify-between">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1600px] w-full mx-auto h-full">
+      <section id="tab-content-menu" class="p-3 sm:p-5 h-full flex flex-col justify-between">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 max-w-[1600px] w-full mx-auto h-full">
           <div class="lg:col-span-7 flex flex-col space-y-4">
-            <div class="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm space-y-3">
+            <div class="bg-white border border-slate-200 p-3 sm:p-4 rounded-3xl shadow-sm space-y-3">
               <div class="flex flex-col sm:flex-row gap-2.5 items-center justify-between">
                 <div class="flex w-full sm:w-auto flex-1 gap-2">
                   <div class="relative flex-1">
@@ -362,7 +395,7 @@
                     </span>
                     <input type="text" id="cari-produk" placeholder="Cari nama atau barcode..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white"/>
                   </div>
-                  <button onclick="bukaModalScanner()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition">
+                  <button onclick="bukaModalScanner()" class="bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition">
                     <i data-lucide="scan-barcode" class="w-4 h-4 text-emerald-400"></i>
                     <span class="hidden sm:inline">Scan</span>
                   </button>
@@ -380,13 +413,13 @@
                 </button>
               </div>
             </div>
-            <div id="grid-produk" class="grid grid-cols-2 sm:grid-cols-3 gap-3.5 overflow-y-auto max-h-[66vh] pr-1 pb-4">
+            <div id="grid-produk" class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] lg:max-h-[66vh] pr-1 pb-4">
               <p class="text-slate-400 text-xs col-span-full text-center py-12">Memuat daftar menu...</p>
             </div>
           </div>
 
           <!-- Panel Pesanan Sekarang -->
-          <div class="lg:col-span-5 bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex flex-col justify-between h-[84vh]">
+          <div class="lg:col-span-5 bg-white border border-slate-200 rounded-3xl p-3.5 sm:p-4 shadow-sm flex flex-col justify-between min-h-[460px] lg:h-[84vh]">
             <div class="flex flex-col h-full overflow-hidden">
               <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-2.5">
                 <div class="flex items-center space-x-2">
@@ -421,7 +454,7 @@
                   </div>
                 </div>
               </div>
-              <div id="list-keranjang" class="flex-1 space-y-2 overflow-y-auto pr-1">
+              <div id="list-keranjang" class="flex-1 space-y-2 overflow-y-auto pr-1 max-h-[220px] lg:max-h-full">
                 <div class="h-full flex flex-col items-center justify-center text-slate-400 py-10">
                   <i data-lucide="shopping-cart" class="w-10 h-10 stroke-[1.5] mb-2 text-slate-300"></i>
                   <p class="text-xs font-medium">Keranjang masih kosong</p>
@@ -446,15 +479,15 @@
       </section>
 
       <!-- 3. CATATAN KEUANGAN & PENGELUARAN -->
-      <section id="tab-content-keuangan" class="hidden p-6 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs">
+      <section id="tab-content-keuangan" class="hidden p-4 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs">
           <div>
             <div class="flex items-center space-x-2.5">
               <div class="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
                 <i data-lucide="wallet" class="w-5 h-5"></i>
               </div>
               <div>
-                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Catatan Keuangan & Arus Kas</h2>
+                <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">Catatan Keuangan & Arus Kas</h2>
                 <p class="text-xs text-slate-400">Monitoring real-time omzet masuk, belanja operasional toko, dan saldo bersih</p>
               </div>
             </div>
@@ -465,7 +498,7 @@
               <i data-lucide="receipt" class="w-4 h-4 text-rose-600"></i>
               <span>Catat Pengeluaran</span>
             </button>
-            <button onclick="muatUlangSemuaData()" class="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 p-2.5 rounded-2xl transition" title="Refresh Data Keuangan">
+            <button onclick="muatUlangSemuaData()" class="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 p-2.5 rounded-2xl transition" title="Refresh">
               <i data-lucide="rotate-cw" class="w-4 h-4 text-emerald-600"></i>
             </button>
           </div>
@@ -517,13 +550,12 @@
               <p id="keuangan-saldo-bersih" class="text-3xl font-black text-emerald-400 tracking-tight">Rp 0</p>
             </div>
             <p class="text-[11px] text-slate-300/80 mt-3 pt-3 border-t border-white/10 relative z-10">
-              Total riil kas yang tersedia setelah dipotong semua belanja bahan, operasional, & kemasan.
+              Total kas tersedia setelah dipotong seluruh belanja operasional & bahan toko.
             </p>
           </div>
         </div>
 
-        <!-- Tabel Catatan Pengeluaran Toko -->
-        <div class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4">
+        <div class="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
           <div class="flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <div class="flex items-center space-x-2">
@@ -559,8 +591,7 @@
           </div>
         </div>
 
-        <!-- Tabel Riwayat Penjualan Masuk -->
-        <div class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4">
+        <div class="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
           <div class="flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <div class="flex items-center space-x-2">
@@ -598,10 +629,10 @@
       </section>
 
       <!-- 4. ORDER -->
-      <section id="tab-content-order" class="hidden p-8 space-y-6 max-w-7xl w-full mx-auto">
+      <section id="tab-content-order" class="hidden p-4 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Daftar Order Pelanggan</h2>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Daftar Order Pelanggan</h2>
             <p class="text-xs text-slate-500 mt-1">Daftar pesanan aktif lengkap dengan status dan rincian meja</p>
           </div>
           <button onclick="muatUlangSemuaData()" class="bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 flex items-center space-x-1.5 transition">
@@ -610,17 +641,17 @@
           </button>
         </div>
 
-        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div class="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h3 class="text-sm font-extrabold text-slate-900">Riwayat Order</h3>
-              <p class="text-[11px] text-slate-400">Kelola riwayat pesanan pelanggan, rincian meja, dan cetak ulang struk</p>
+              <p class="text-[11px] text-slate-400">Kelola riwayat pesanan pelanggan dan cetak struk</p>
             </div>
             <div class="relative w-full sm:w-72">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <i data-lucide="search" class="w-4 h-4"></i>
               </span>
-              <input type="text" id="cari-order-atas" placeholder="Cari No. Order / Pelanggan / Meja..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition"/>
+              <input type="text" id="cari-order-atas" placeholder="Cari No. Order / Pelanggan..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition"/>
             </div>
           </div>
 
@@ -650,19 +681,19 @@
       </section>
 
       <!-- 5. RESERVASI -->
-      <section id="tab-content-reservasi" class="hidden p-8 space-y-6 max-w-7xl w-full mx-auto">
+      <section id="tab-content-reservasi" class="hidden p-4 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Reservasi & Booking Meja</h2>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Reservasi & Booking Meja</h2>
             <p class="text-xs text-slate-500 mt-1">Daftar pemesanan tempat pelanggan yang terjadwal</p>
           </div>
-          <button id="btn-buka-modal-reservasi" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 transition active:scale-95">
+          <button id="btn-buka-modal-reservasi" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 transition active:scale-95">
             <i data-lucide="calendar-plus" class="w-4 h-4"></i>
-            <span>+ Buat Reservasi Baru</span>
+            <span>+ Buat Reservasi</span>
           </button>
         </div>
 
-        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div class="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h3 class="text-sm font-extrabold text-slate-900">Riwayat Booking & Jadwal Reservasi</h3>
@@ -698,9 +729,9 @@
       </section>
 
       <!-- 6. PENGATURAN -->
-      <section id="tab-content-pengaturan" class="hidden p-8 space-y-6 max-w-3xl w-full mx-auto">
-        <h2 class="text-2xl font-black text-slate-900 tracking-tight">Pengaturan Toko & QRIS</h2>
-        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+      <section id="tab-content-pengaturan" class="hidden p-4 sm:p-8 space-y-6 max-w-3xl w-full mx-auto">
+        <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Pengaturan Toko & QRIS</h2>
+        <div class="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Nama Toko / Usaha</label>
             <input type="text" id="setting-nama-toko" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-emerald-500"/>
@@ -711,7 +742,7 @@
           </div>
           <div class="pt-2 border-t border-slate-100">
             <label class="block text-xs font-bold text-slate-800 mb-1.5">Foto Kode QRIS GoPay Merchant</label>
-            <div class="flex items-center space-x-4">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
               <div id="preview-setting-qris-container" class="w-28 h-28 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
                 <img id="preview-setting-qris-img" src="" class="w-full h-full object-contain hidden"/>
                 <div id="preview-setting-qris-placeholder" class="text-center p-2 text-slate-400">
