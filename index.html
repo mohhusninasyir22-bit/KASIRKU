@@ -26,25 +26,22 @@
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
 
-  <!-- ================= AUTH VIEW (LOGIN, REGISTER, LUPA SANDI) ================= -->
+  <!-- ================= AUTH VIEW ================= -->
   <div id="view-auth" class="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-slate-100 via-emerald-50 to-teal-100">
     <div class="bg-white border border-slate-200 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-xl">
       <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500 text-white shadow-lg mb-3">
           <i data-lucide="store" class="w-7 h-7"></i>
         </div>
-        <!-- JUDUL HALAMAN LOGIN TERKUNCI STATIS SEBAGAI KASIR ONLINE -->
         <h1 id="brand-auth-title" class="text-2xl font-black text-slate-800 tracking-tight">KASIR ONLINE</h1>
         <p class="text-slate-500 text-xs mt-1" id="auth-subtitle">Masuk ke sistem kasir toko Anda</p>
       </div>
 
-      <!-- Tab Masuk / Daftar -->
       <div id="wrapper-auth-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-5 border border-slate-200">
         <button id="tab-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white text-emerald-700 shadow-sm transition">Masuk</button>
         <button id="tab-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 transition">Daftar Kasir</button>
       </div>
 
-      <!-- FORM LOGIN & REGISTER -->
       <form id="auth-form" class="space-y-3.5">
         <div id="reg-fields" class="hidden space-y-3">
           <div>
@@ -81,7 +78,7 @@
     </div>
   </div>
 
-  <!-- ================= MODAL LUPA SANDI DENGAN TAUTAN EMAIL ================= -->
+  <!-- ================= MODAL LUPA SANDI ================= -->
   <div id="modal-lupa-sandi-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
@@ -129,76 +126,82 @@
 
   <!-- ================= DASHBOARD SUPER ADMIN ================= -->
   <div id="view-admin" class="hidden min-h-screen flex flex-col bg-slate-100">
-    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+      <div class="flex items-center space-x-2.5 sm:space-x-3">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 shrink-0">
           <i data-lucide="shield-check" class="w-5 h-5"></i>
         </div>
         <div>
-          <h1 class="font-black text-slate-900 text-sm tracking-tight">PANEL SUPER ADMIN</h1>
-          <p class="text-[10px] text-slate-400 font-semibold">Pusat Verifikasi & Manajemen Toko</p>
+          <h1 class="font-black text-slate-900 text-xs sm:text-sm tracking-tight leading-tight">PANEL SUPER ADMIN</h1>
+          <p class="text-[9px] sm:text-[10px] text-slate-400 font-semibold truncate max-w-[150px] sm:max-w-none">Pusat Verifikasi & Masa Aktif Toko</p>
         </div>
       </div>
 
-      <div class="flex items-center space-x-3">
-        <span class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200" id="label-admin-email">admin@pos.com</span>
-        <button onclick="keluarSesi()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition">
+      <div class="flex items-center space-x-2">
+        <span class="hidden md:inline-block text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200" id="label-admin-email">admin@pos.com</span>
+        <button onclick="keluarSesi()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1 transition active:scale-95">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           <span>Keluar</span>
         </button>
       </div>
     </header>
 
-    <main class="p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 flex-1">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Toko Terdaftar</span>
-          <p id="admin-stat-total" class="text-2xl font-black text-slate-900 mt-1">0</p>
+    <main class="p-3 sm:p-6 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6 flex-1">
+      <!-- Statistik Mobile Friendly -->
+      <div class="grid grid-cols-3 gap-2.5 sm:gap-4">
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs">
+          <span class="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block truncate">Total Toko</span>
+          <p id="admin-stat-total" class="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 sm:mt-1">0</p>
         </div>
-        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Menunggu Konfirmasi</span>
-          <p id="admin-stat-pending" class="text-2xl font-black text-amber-500 mt-1">0</p>
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs">
+          <span class="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block truncate">Pending</span>
+          <p id="admin-stat-pending" class="text-lg sm:text-2xl font-black text-amber-500 mt-0.5 sm:mt-1">0</p>
         </div>
-        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Toko Aktif</span>
-          <p id="admin-stat-active" class="text-2xl font-black text-emerald-600 mt-1">0</p>
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs">
+          <span class="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block truncate">Toko Aktif</span>
+          <p id="admin-stat-active" class="text-lg sm:text-2xl font-black text-emerald-600 mt-0.5 sm:mt-1">0</p>
         </div>
       </div>
 
-      <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-4">
+      <!-- Tabel dan List Pengguna -->
+      <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-3 sm:pb-4">
           <div>
-            <h3 class="text-sm font-extrabold text-slate-900">Daftar Pendaftar & Pengguna Toko</h3>
-            <p class="text-[11px] text-slate-400">Konfirmasi pendaftaran baru atau kelola akun toko</p>
+            <h3 class="text-xs sm:text-sm font-extrabold text-slate-900">Daftar Pendaftar & Pengguna Toko</h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-400">Atur masa aktif toko, konfirmasi pendaftar, dan kelola sampah</p>
           </div>
           <div class="flex items-center space-x-2 w-full sm:w-auto">
-            <div class="relative w-full sm:w-64">
+            <div class="relative flex-1 sm:w-64">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <i data-lucide="search" class="w-3.5 h-3.5"></i>
               </span>
               <input type="text" id="cari-user-admin" placeholder="Cari nama / toko / email..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition"/>
             </div>
-            <button onclick="muatDataAdmin()" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 p-2 rounded-xl transition" title="Refresh">
+            <!-- Tombol Tong Sampah Admin -->
+            <button onclick="bukaModalSampahAdmin()" class="relative bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 p-2 rounded-xl transition shrink-0" title="Tong Sampah Toko (30 Hari)">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              <span id="badge-counter-sampah-admin" class="hidden absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
+            </button>
+            <button onclick="muatDataAdmin()" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 p-2 rounded-xl transition shrink-0" title="Refresh">
               <i data-lucide="rotate-cw" class="w-4 h-4 text-indigo-600"></i>
             </button>
           </div>
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs whitespace-nowrap min-w-[650px]">
+          <table class="w-full text-left text-xs whitespace-nowrap min-w-[700px]">
             <thead>
               <tr class="text-slate-400 font-bold border-b border-slate-100">
                 <th class="pb-3 px-3">Nama Pemilik</th>
                 <th class="pb-3 px-3">Nama Toko</th>
                 <th class="pb-3 px-3">No. WhatsApp</th>
-                <th class="pb-3 px-3">Email Akun</th>
-                <th class="pb-3 px-3">Waktu Daftar</th>
+                <th class="pb-3 px-3">Masa Aktif Berakhir</th>
                 <th class="pb-3 px-3">Status</th>
                 <th class="pb-3 px-3 text-center">Aksi Admin</th>
               </tr>
             </thead>
             <tbody id="table-admin-users-body" class="divide-y divide-slate-100">
-              <tr><td colspan="7" class="py-8 text-center text-slate-400">Memuat data pengguna...</td></tr>
+              <tr><td colspan="6" class="py-8 text-center text-slate-400">Memuat data pengguna...</td></tr>
             </tbody>
           </table>
         </div>
@@ -206,17 +209,93 @@
     </main>
   </div>
 
+  <!-- ================= MODAL ATUR MASA AKTIF TOKO ================= -->
+  <div id="modal-durasi-admin-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div>
+          <h3 class="font-extrabold text-sm text-slate-900">Atur Masa Aktif Toko</h3>
+          <p class="text-[10px] text-slate-400" id="label-durasi-toko-target">Toko: -</p>
+        </div>
+        <button onclick="tutupModalDurasiAdmin()" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
+      </div>
+
+      <input type="hidden" id="input-durasi-user-id"/>
+
+      <div class="space-y-3">
+        <label class="block text-xs font-bold text-slate-700">Pilih Paket Durasi Cepat</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="setPresetDurasi(7)" class="py-2 px-2 text-[11px] font-bold rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition active:scale-95">1 Minggu</button>
+          <button type="button" onclick="setPresetDurasi(30)" class="py-2 px-2 text-[11px] font-bold rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition active:scale-95">1 Bulan</button>
+          <button type="button" onclick="setPresetDurasi(365)" class="py-2 px-2 text-[11px] font-bold rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition active:scale-95">1 Tahun</button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 space-y-2.5">
+          <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Atau Kustom Rentang Tanggal</span>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-600 mb-1">Mulai Aktif</label>
+            <input type="date" id="input-durasi-mulai" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-indigo-500"/>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-600 mb-1">Berakhir Pada (Kedaluwarsa)</label>
+            <input type="date" id="input-durasi-akhir" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-indigo-500"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex space-x-2">
+        <button type="button" onclick="tutupModalDurasiAdmin()" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">Batal</button>
+        <button type="button" onclick="simpanMasaAktifToko()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-indigo-600/20 active:scale-95">Aktifkan Toko</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL TONG SAMPAH ADMIN ================= -->
+  <div id="modal-sampah-admin-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-sm text-slate-900">Tong Sampah Toko</h3>
+            <p class="text-[10px] text-slate-500">Tersimpan 30 hari sebelum terhapus otomatis</p>
+          </div>
+        </div>
+        <button onclick="tutupModalSampahAdmin()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">✕</button>
+      </div>
+      <div class="p-4 sm:p-6 overflow-y-auto flex-1">
+        <table class="w-full text-left text-xs whitespace-nowrap min-w-[500px]">
+          <thead>
+            <tr class="text-slate-400 font-bold border-b border-slate-100">
+              <th class="pb-2.5 px-2">Nama Pemilik</th>
+              <th class="pb-2.5 px-2">Nama Toko</th>
+              <th class="pb-2.5 px-2">Sisa Waktu</th>
+              <th class="pb-2.5 px-2 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="table-sampah-admin-body" class="divide-y divide-slate-100">
+            <tr><td colspan="4" class="py-8 text-center text-slate-400">Tong sampah toko kosong.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-5 sm:px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+        <button onclick="tutupModalSampahAdmin()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold transition">Tutup</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= APP VIEW TOKO / USER ================= -->
   <div id="view-pos" class="hidden min-h-screen flex flex-col md:flex-row overflow-hidden">
     
-    <!-- HEADER KHUSUS MOBILE (HP ANDROID & IOS) -->
+    <!-- HEADER KHUSUS MOBILE -->
     <header class="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-xs">
       <div class="flex items-center space-x-2.5">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-xs">
           <i data-lucide="store" class="w-5 h-5"></i>
         </div>
         <div>
-          <!-- NAMA TOKO KHUSUS HEADER MOBILE -->
           <h1 class="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-tight app-store-name-text truncate max-w-[170px]">Nama Toko</h1>
           <div class="flex items-center space-x-1 mt-0.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -230,7 +309,6 @@
       </button>
     </header>
 
-    <!-- BACKDROP GELAP UNTUK DRAWER MOBILE -->
     <div id="mobile-sidebar-backdrop" onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden transition-opacity md:hidden"></div>
 
     <!-- SIDEBAR DESKTOP -->
@@ -242,7 +320,6 @@
               <i data-lucide="store" class="w-5 h-5"></i>
             </div>
             <div>
-              <!-- NAMA TOKO KHUSUS SIDEBAR LAPTOP -->
               <h1 class="font-black text-slate-900 text-sm tracking-tight leading-tight app-store-name-text">Nama Toko</h1>
               <div class="flex items-center space-x-1.5 mt-0.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -475,7 +552,7 @@
           </div>
         </div>
 
-        <!-- FLOATING CHECKOUT BAR (KHUSUS MOBILE) -->
+        <!-- FLOATING CHECKOUT BAR (MOBILE) -->
         <div id="floating-checkout-bar" class="lg:hidden fixed bottom-4 inset-x-4 z-40 hidden">
           <button onclick="bukaSheetPesananMobile()" class="w-full bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-2xl shadow-xl flex items-center justify-between border border-slate-700/50 transition active:scale-98">
             <div class="flex items-center space-x-3 text-left">
@@ -495,7 +572,7 @@
         </div>
       </section>
 
-      <!-- 3. CATATAN KEUANGAN & PENGELUARAN -->
+      <!-- 3. CATATAN KEUANGAN -->
       <section id="tab-content-keuangan" class="hidden p-4 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs">
           <div>
@@ -784,7 +861,7 @@
     </main>
   </div>
 
-  <!-- ================= BOTTOM SHEET PESANAN SEKARANG (KHUSUS MOBILE) ================= -->
+  <!-- ================= BOTTOM SHEET PESANAN SEKARANG (MOBILE) ================= -->
   <div id="modal-mobile-checkout-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4 z-50">
     <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-200 max-h-[88vh] flex flex-col justify-between">
       <div class="flex items-center justify-between border-b pb-3 mb-3">
@@ -842,7 +919,7 @@
     </div>
   </div>
 
-  <!-- ================= MODAL VARIAN MINUMAN & CATATAN ================= -->
+  <!-- ================= MODAL VARIAN ITEM ================= -->
   <div id="modal-opsi-item-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
@@ -877,7 +954,7 @@
     </div>
   </div>
 
-  <!-- ================= MODAL INPUT & EDIT PENGELUARAN ================= -->
+  <!-- ================= MODAL PENGELUARAN ================= -->
   <div id="modal-pengeluaran-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
@@ -925,7 +1002,7 @@
     </div>
   </div>
 
-  <!-- ================= MODAL TONG SAMPAH ================= -->
+  <!-- ================= MODAL SAMPAH TOKO (USER) ================= -->
   <div id="modal-sampah-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
       <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
@@ -1128,7 +1205,6 @@
   <div id="modal-struk-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div id="modal-struk" class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl font-mono text-xs border border-slate-200">
       <div class="text-center border-b border-dashed pb-4">
-        <!-- NAMA TOKO KHUSUS KOP STRUK BELANJA -->
         <h3 class="font-extrabold text-sm uppercase struk-store-name">KASIR ONLINE</h3>
         <p class="text-[10px] text-slate-400 mt-0.5" id="struk-tanggal"></p>
         <p class="text-[10px] text-slate-400">TRX: <span id="struk-id"></span></p>

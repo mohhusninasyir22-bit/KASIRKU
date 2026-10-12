@@ -1,4 +1,4 @@
-const SUPABASE_URL = 'https://tqpmdiwkcppxzvvguiwk.supabase.co';
+const SUPABASE_URL = '[https://tqpmdiwkcppxzvvguiwk.supabase.co](https://tqpmdiwkcppxzvvguiwk.supabase.co)';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcG1kaXdrY3BweHp2dmd1aXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NjU3MDgsImV4cCI6MjEwNzE0MTcwOH0.JEiiVxf5kuiuP4lS1n1sqoqe_xR8q0sgHPQBwF_wAJI';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -153,12 +153,36 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
+    // Pengecekan Akun yang sedang berada di Tong Sampah
+    if (prof.deleted_at && prof.role !== 'admin') {
+      await supabaseClient.auth.signOut();
+      btnAuthSubmit.disabled = false;
+      btnAuthSubmit.innerText = 'Masuk ke Kasir';
+      authAlert.className = 'mt-4 text-center text-xs p-3.5 rounded-xl font-semibold bg-rose-50 text-rose-700 border border-rose-200';
+      authAlert.innerHTML = `⚠️ <strong>Akun Tidak Aktif!</strong><br>Akun toko Anda telah dinonaktifkan oleh administrator. Silakan hubungi admin.`;
+      authAlert.classList.remove('hidden');
+      return;
+    }
+
+    // Pengecekan Masa Aktif Toko (Expired Check)
+    if (prof.role !== 'admin' && prof.expires_at) {
+      const tglSekarang = new Date();
+      const tglBerakhir = new Date(prof.expires_at);
+
+      if (tglSekarang > tglBerakhir) {
+        // Otomatis ubah status di DB menjadi pending karena masa aktif habis
+        await supabaseClient.from('user_profiles').update({ status: 'pending' }).eq('id', prof.id);
+        prof.status = 'pending';
+      }
+    }
+
+    // Pengecekan Status Pending (Belum Aktif atau Masa Aktif Habis)
     if (prof.status === 'pending' && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
       btnAuthSubmit.innerText = 'Masuk ke Kasir';
       authAlert.className = 'mt-4 text-center text-xs p-3.5 rounded-xl font-semibold bg-amber-50 text-amber-800 border border-amber-200';
-      authAlert.innerHTML = `⚠️ <strong>Akun Belum Dikonfirmasi!</strong><br>Pendaftaran toko Anda sedang menunggu persetujuan dari Super Admin.`;
+      authAlert.innerHTML = `⚠️ <strong>Masa Aktif Akun Habis / Belum Aktif!</strong><br>Masa aktif akun toko Anda telah berakhir atau belum disetujui. Silakan hubungi Super Admin untuk memperpanjang durasi aktif akun.`;
       authAlert.classList.remove('hidden');
       return;
     }
@@ -205,7 +229,10 @@ authForm.addEventListener('submit', async (e) => {
         whatsapp: whatsapp,
         email: email,
         role: 'user',
-        status: 'pending'
+        status: 'pending',
+        active_from: null,
+        expires_at: null,
+        deleted_at: null
       }]);
 
       await supabaseClient.auth.signOut();
@@ -222,8 +249,6 @@ authForm.addEventListener('submit', async (e) => {
 
 function terapkanNamaTokoKeUI(namaToko) {
   const storeNameFinal = namaToko || 'Toko Saya';
-  
-  // HANYA perbarui elemen header aplikasi dan kop struk, TIDAK menyentuh halaman login
   document.querySelectorAll('.app-store-name-text').forEach(e => e.innerText = storeNameFinal);
   document.querySelectorAll('.struk-store-name').forEach(e => e.innerText = storeNameFinal);
   
@@ -250,8 +275,6 @@ function bukaLayarAplikasi() {
     viewPos.classList.remove('hidden');
 
     document.getElementById('label-user').innerText = currentProfile?.full_name || currentUser.email;
-
-    // Terapkan nama toko pengguna ke seluruh header dashboard
     terapkanNamaTokoKeUI(currentProfile?.store_name);
 
     inisialisasiPengaturan();
@@ -287,6 +310,18 @@ async function cekSesiAktif() {
         .single();
 
       currentProfile = prof || { role: 'user', status: 'active', store_name: 'Toko Saya' };
+
+      if (currentProfile.deleted_at && currentProfile.role !== 'admin') {
+        keluarSesi();
+        return;
+      }
+
+      if (currentProfile.role !== 'admin' && currentProfile.expires_at) {
+        if (new Date() > new Date(currentProfile.expires_at)) {
+          await supabaseClient.from('user_profiles').update({ status: 'pending' }).eq('id', currentProfile.id);
+          currentProfile.status = 'pending';
+        }
+      }
 
       if (currentProfile.status === 'pending' && currentProfile.role !== 'admin') {
         keluarSesi();
@@ -387,7 +422,7 @@ document.getElementById('form-input-sandi-baru')?.addEventListener('submit', asy
   }
 });
 
-// ================= PANEL SUPER ADMIN =================
+// ================= PANEL SUPER ADMIN DENGAN FITUR MASA AKTIF & TONG SAMPAH =================
 async function muatDataAdmin() {
   try {
     const { data, error } = await supabaseClient
@@ -406,16 +441,29 @@ function renderTabelAdmin() {
   const tbody = document.getElementById('table-admin-users-body');
   if (!tbody) return;
 
-  const total = stateAdminUsers.length;
-  const pending = stateAdminUsers.filter(u => u.status === 'pending').length;
-  const active = stateAdminUsers.filter(u => u.status === 'active').length;
+  const usersAktifNonSampah = stateAdminUsers.filter(u => !u.deleted_at);
+  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
+
+  const badgeSampahAdmin = document.getElementById('badge-counter-admin-sampah');
+  if (badgeSampahAdmin) {
+    if (usersSampah.length > 0) {
+      badgeSampahAdmin.innerText = usersSampah.length;
+      badgeSampahAdmin.classList.remove('hidden');
+    } else {
+      badgeSampahAdmin.classList.add('hidden');
+    }
+  }
+
+  const total = usersAktifNonSampah.length;
+  const pending = usersAktifNonSampah.filter(u => u.status === 'pending').length;
+  const active = usersAktifNonSampah.filter(u => u.status === 'active').length;
 
   document.getElementById('admin-stat-total').innerText = total;
   document.getElementById('admin-stat-pending').innerText = pending;
   document.getElementById('admin-stat-active').innerText = active;
 
   const q = (document.getElementById('cari-user-admin')?.value || '').toLowerCase();
-  const filtered = stateAdminUsers.filter(u => {
+  const filtered = usersAktifNonSampah.filter(u => {
     const n = (u.full_name || '').toLowerCase();
     const s = (u.store_name || '').toLowerCase();
     const e = (u.email || '').toLowerCase();
@@ -428,23 +476,41 @@ function renderTabelAdmin() {
   }
 
   tbody.innerHTML = filtered.map(u => {
-    const waktu = u.created_at ? new Date(u.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
-    const isPending = u.status === 'pending';
     const isAdmin = u.role === 'admin';
+    const isPending = u.status === 'pending';
 
-    let statusBadge = isPending
+    let teksMasaBerlaku = '-';
+    let isExpired = false;
+
+    if (isAdmin) {
+      teksMasaBerlaku = '<span class="text-indigo-600 font-extrabold text-[11px]">Selamanya (Admin)</span>';
+    } else if (u.expires_at) {
+      const expDate = new Date(u.expires_at);
+      const now = new Date();
+      isExpired = now > expDate;
+      const tglFormatted = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      if (isExpired) {
+        teksMasaBerlaku = `<span class="text-rose-600 font-bold text-[11px]">Kedaluwarsa (${tglFormatted})</span>`;
+      } else {
+        teksMasaBerlaku = `<span class="text-emerald-700 font-bold text-[11px]">s.d ${tglFormatted}</span>`;
+      }
+    } else {
+      teksMasaBerlaku = '<span class="text-slate-400 italic text-[11px]">Belum diatur</span>';
+    }
+
+    let statusBadge = (isPending || isExpired)
       ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>`
       : `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`;
 
+    // Tombol Aksi menggunakan ID aman (tanpa string escaping yang merusak sintaksis nama)
     let aksiTombol = `
       <div class="inline-flex items-center space-x-1.5">
-        ${isPending ? `
-          <button onclick="adminKonfirmasiUser('${u.id}')" class="p-1.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 rounded-xl transition border border-emerald-200 shadow-2xs" title="Setujui Pendaftaran">
-            <i data-lucide="check" class="w-4 h-4"></i>
-          </button>
-        ` : ''}
         ${!isAdmin ? `
-          <button onclick="adminHapusUser('${u.id}', '${u.full_name}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus User">
+          <button onclick="bukaModalDurasiAdmin('${u.id}')" class="p-1.5 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-xl transition border border-indigo-200 shadow-2xs" title="Atur Masa Aktif Toko">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+          </button>
+          <button onclick="adminBuangUserKeSampah('${u.id}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus ke Tong Sampah">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
         ` : '<span class="text-[10px] text-slate-400 italic">Super Admin</span>'}
@@ -457,7 +523,7 @@ function renderTabelAdmin() {
         <td class="py-3 px-3 font-semibold text-slate-700">${u.store_name}</td>
         <td class="py-3 px-3 text-slate-500 font-mono">${u.whatsapp}</td>
         <td class="py-3 px-3 text-slate-600">${u.email}</td>
-        <td class="py-3 px-3 text-slate-400">${waktu}</td>
+        <td class="py-3 px-3">${teksMasaBerlaku}</td>
         <td class="py-3 px-3">${statusBadge}</td>
         <td class="py-3 px-3 text-center">${aksiTombol}</td>
       </tr>
@@ -468,26 +534,191 @@ function renderTabelAdmin() {
 
 document.getElementById('cari-user-admin')?.addEventListener('input', renderTabelAdmin);
 
-window.adminKonfirmasiUser = async function(userId) {
-  if (!confirm('Setujui dan aktifkan toko pengguna ini? Pengguna akan langsung bisa login.')) return;
+// ================= MODAL ATUR MASA AKTIF USER =================
+window.bukaModalDurasiAdmin = function(userId) {
+  const user = stateAdminUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  document.getElementById('modal-durasi-user-id').value = user.id;
+  document.getElementById('modal-durasi-subtitle').innerText = `${user.store_name} (${user.full_name})`;
+
+  const now = new Date();
+  const startStr = user.active_from ? new Date(user.active_from).toISOString().slice(0, 10) : now.toISOString().slice(0, 10);
+  document.getElementById('input-durasi-start').value = startStr;
+
+  if (user.expires_at) {
+    document.getElementById('input-durasi-end').value = new Date(user.expires_at).toISOString().slice(0, 10);
+  } else {
+    const endDefault = new Date();
+    endDefault.setDate(endDefault.getDate() + 30);
+    document.getElementById('input-durasi-end').value = endDefault.toISOString().slice(0, 10);
+  }
+
+  document.getElementById('modal-admin-durasi-backdrop').classList.remove('hidden');
+  document.getElementById('modal-admin-durasi-backdrop').classList.add('flex');
+  refreshIcons();
+};
+
+window.tutupModalDurasiAdmin = function() {
+  document.getElementById('modal-admin-durasi-backdrop').classList.add('hidden');
+  document.getElementById('modal-admin-durasi-backdrop').classList.remove('flex');
+};
+
+window.setPresetDurasi = function(hari) {
+  const startVal = document.getElementById('input-durasi-start').value || new Date().toISOString().slice(0, 10);
+  const startDate = new Date(startVal);
+  startDate.setDate(startDate.getDate() + hari);
+  document.getElementById('input-durasi-end').value = startDate.toISOString().slice(0, 10);
+};
+
+window.simpanDurasiAdmin = async function() {
+  const userId = document.getElementById('modal-durasi-user-id').value;
+  const startStr = document.getElementById('input-durasi-start').value;
+  const endStr = document.getElementById('input-durasi-end').value;
+
+  if (!startStr || !endStr) {
+    alert('Tanggal mulai dan tanggal berakhir harus diisi!');
+    return;
+  }
+
+  const startDate = new Date(startStr);
+  const endDate = new Date(endStr);
+  endDate.setHours(23, 59, 59, 999);
+
+  if (endDate < startDate) {
+    alert('Tanggal berakhir tidak boleh mendahului tanggal mulai!');
+    return;
+  }
 
   const { error } = await supabaseClient
     .from('user_profiles')
-    .update({ status: 'active' })
+    .update({
+      active_from: startDate.toISOString(),
+      expires_at: endDate.toISOString(),
+      status: 'active'
+    })
     .eq('id', userId);
 
   if (error) {
-    alert('Gagal konfirmasi: ' + error.message);
+    alert('Gagal mengatur masa aktif: ' + error.message);
   } else {
     const user = stateAdminUsers.find(u => u.id === userId);
-    if (user) user.status = 'active';
+    if (user) {
+      user.active_from = startDate.toISOString();
+      user.expires_at = endDate.toISOString();
+      user.status = 'active';
+    }
+    tutupModalDurasiAdmin();
     renderTabelAdmin();
-    alert('Pengguna berhasil diaktifkan!');
+    alert('Masa aktif toko berhasil disimpan dan akun langsung berstatus aktif!');
   }
 };
 
-window.adminHapusUser = async function(userId, nama) {
-  if (!confirm(`Hapus toko "${nama}"? Semua hak akses login dan data terkait akan dihapus permanen.`)) return;
+// ================= TONG SAMPAH AKUN TOKO SUPER ADMIN =================
+window.adminBuangUserKeSampah = async function(userId) {
+  const user = stateAdminUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  const konfirmasi = confirm(`Pindahkan toko "${user.store_name}" (Pemilik: ${user.full_name}) ke tong sampah? Akun akan disimpan selama 30 hari.`);
+  if (!konfirmasi) return;
+
+  const waktuHapus = new Date().toISOString();
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .update({ deleted_at: waktuHapus })
+    .eq('id', userId);
+
+  if (error) {
+    alert('Gagal memindahkan ke tong sampah: ' + error.message);
+  } else {
+    user.deleted_at = waktuHapus;
+    renderTabelAdmin();
+  }
+};
+
+window.bukaModalSampahAdmin = function() {
+  renderTabelSampahAdmin();
+  document.getElementById('modal-admin-sampah-backdrop').classList.remove('hidden');
+  document.getElementById('modal-admin-sampah-backdrop').classList.add('flex');
+  refreshIcons();
+};
+
+window.tutupModalSampahAdmin = function() {
+  document.getElementById('modal-admin-sampah-backdrop').classList.add('hidden');
+  document.getElementById('modal-admin-sampah-backdrop').classList.remove('flex');
+};
+
+function renderTabelSampahAdmin() {
+  const tbody = document.getElementById('table-admin-sampah-body');
+  if (!tbody) return;
+
+  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
+
+  if (usersSampah.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tong sampah toko kosong.</td></tr>`;
+    return;
+  }
+
+  const sekarang = new Date();
+
+  tbody.innerHTML = usersSampah.map(u => {
+    const tglHapus = new Date(u.deleted_at);
+    const selisihHari = Math.floor((sekarang - tglHapus) / (1000 * 60 * 60 * 24));
+    const sisaHari = Math.max(0, 30 - selisihHari);
+
+    return `
+      <tr class="hover:bg-rose-50/40 transition">
+        <td class="py-3 px-2 font-bold text-slate-800">${u.store_name}</td>
+        <td class="py-3 px-2 font-semibold text-slate-700">${u.full_name}</td>
+        <td class="py-3 px-2 text-slate-500 font-mono text-[11px]">${u.email}</td>
+        <td class="py-3 px-2">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">${sisaHari} hari lagi</span>
+        </td>
+        <td class="py-3 px-2 text-center">
+          <div class="inline-flex items-center space-x-1.5">
+            <button onclick="adminPulihkanUser('${u.id}')" class="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span>Pulihkan</span>
+            </button>
+            <button onclick="adminHapusUserPermanen('${u.id}')" class="bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i><span>Hapus</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  refreshIcons();
+}
+
+window.adminPulihkanUser = async function(userId) {
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .update({ deleted_at: null })
+    .eq('id', userId);
+
+  if (error) {
+    alert('Gagal memulihkan akun toko: ' + error.message);
+  } else {
+    const user = stateAdminUsers.find(u => u.id === userId);
+    if (user) user.deleted_at = null;
+    renderTabelSampahAdmin();
+    renderTabelAdmin();
+    alert('Akun toko berhasil dipulihkan!');
+  }
+};
+
+window.adminHapusUserPermanen = async function(userId) {
+  const user = stateAdminUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  const konfirmasi = confirm(`PERINGATAN: Toko "${user.store_name}" akan DIHAPUS PERMANEN beserta seluruh data produk & transaksi. Lanjutkan?`);
+  if (!konfirmasi) return;
+
+  // Hapus seluruh relasi transaksi dan data toko
+  await supabaseClient.from('orders').delete().eq('user_id', userId);
+  await supabaseClient.from('products').delete().eq('user_id', userId);
+  await supabaseClient.from('reservations').delete().eq('user_id', userId);
+  await supabaseClient.from('expenses').delete().eq('user_id', userId);
 
   const { error } = await supabaseClient
     .from('user_profiles')
@@ -495,11 +726,12 @@ window.adminHapusUser = async function(userId, nama) {
     .eq('id', userId);
 
   if (error) {
-    alert('Gagal menghapus: ' + error.message);
+    alert('Gagal menghapus permanen: ' + error.message);
   } else {
     stateAdminUsers = stateAdminUsers.filter(u => u.id !== userId);
+    renderTabelSampahAdmin();
     renderTabelAdmin();
-    alert(`Toko ${nama} berhasil dihapus.`);
+    alert('Akun toko berhasil dihapus secara permanen.');
   }
 };
 
@@ -1093,7 +1325,7 @@ window.bukaModalPembayaran = function() {
   if (qrisFotoSupabase) {
     document.getElementById('img-qris-display').src = qrisFotoSupabase;
   } else {
-    document.getElementById('img-qris-display').src = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS_' + tot;
+    document.getElementById('img-qris-display').src = '[https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS)_' + tot;
   }
 
   document.getElementById('qris-nominal-text').innerText = 'Total: Rp ' + tot.toLocaleString('id-ID');
@@ -1419,7 +1651,7 @@ document.getElementById('form-edit-order')?.addEventListener('submit', async (e)
   }
 });
 
-// ================= HAPUS KE SAMPAH & PULIHKAN =================
+// ================= HAPUS KE SAMPAH & PULIHKAN TRANSAKSI KASIR =================
 window.hapusKeSampah = async function(orderId) {
   if (!confirm('Pindahkan transaksi ini ke tong sampah? Transaksi akan disimpan selama 30 hari.')) return;
 
@@ -2091,7 +2323,7 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
   const ft = document.getElementById('struk-footer-text');
   if (ft) ft.innerText = footerBaru;
 
-  alert('Pengaturan toko berhasil disimpan! Nama toko di header sudah diperbarui dan halaman login tetap bertuliskan KASIR ONLINE.');
+  alert('Pengaturan toko berhasil disimpan!');
 });
 
 // ================= RESERVASI =================
