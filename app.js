@@ -14,6 +14,7 @@ let kategoriList = JSON.parse(localStorage.getItem('pos_kategori_list')) || ['Ma
 let kategoriAktif = 'Semua';
 let tipePesananAktif = 'Dine In';
 let metodeDipilih = 'Tunai';
+let periodeKeuanganAktif = 'bulan'; // Default aktif: 1 Bulan
 
 let stateOrders = [];
 let stateReservasi = [];
@@ -29,6 +30,45 @@ function refreshIcons() {
     try { lucide.createIcons(); } catch(e){}
   }
 }
+
+// ================= LOGIK PENAPIS PERIODE KEWANGAN =================
+function cekApakahMasukPeriode(dateString, periode) {
+  if (!dateString) return false;
+  const tglData = new Date(dateString);
+  const sekarang = new Date();
+
+  if (periode === 'hari') {
+    return tglData.toDateString() === sekarang.toDateString();
+  } else if (periode === 'minggu') {
+    const selisihHari = (sekarang - tglData) / (1000 * 60 * 60 * 24);
+    return selisihHari >= 0 && selisihHari <= 7;
+  } else if (periode === 'bulan') {
+    return (
+      tglData.getMonth() === sekarang.getMonth() &&
+      tglData.getFullYear() === sekarang.getFullYear()
+    );
+  } else if (periode === 'tahun') {
+    return tglData.getFullYear() === sekarang.getFullYear();
+  }
+  return true;
+}
+
+window.setPeriodeKeuangan = function(periode) {
+  periodeKeuanganAktif = periode;
+  const listP = ['hari', 'minggu', 'bulan', 'tahun'];
+  listP.forEach(p => {
+    const btn = document.getElementById('btn-periode-' + p);
+    if (btn) {
+      if (p === periode) {
+        btn.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-xs transition';
+      } else {
+        btn.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition';
+      }
+    }
+  });
+
+  updateSemuaUI();
+};
 
 // ================= MODAL & UI KONTROL (WINDOW SCOPE EXPORT) =================
 window.toggleMobileMenu = function() {
@@ -882,117 +922,6 @@ async function cekSesiAktif() {
   refreshIcons();
 }
 
-// ================= PANEL SUPER ADMIN =================
-async function muatDataAdmin() {
-  try {
-    const { data, error } = await supabaseClient
-      .from('user_profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      stateAdminUsers = data;
-      renderTabelAdmin();
-    }
-  } catch (err) {}
-}
-
-function renderTabelAdmin() {
-  const tbody = document.getElementById('table-admin-users-body');
-  if (!tbody) return;
-
-  const usersAktifNonSampah = stateAdminUsers.filter(u => !u.deleted_at);
-  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
-
-  const badgeSampahAdmin = document.getElementById('badge-counter-admin-sampah');
-  if (badgeSampahAdmin) {
-    if (usersSampah.length > 0) {
-      badgeSampahAdmin.innerText = usersSampah.length;
-      badgeSampahAdmin.classList.remove('hidden');
-    } else {
-      badgeSampahAdmin.classList.add('hidden');
-    }
-  }
-
-  const total = usersAktifNonSampah.length;
-  const pending = usersAktifNonSampah.filter(u => u.status === 'pending').length;
-  const active = usersAktifNonSampah.filter(u => u.status === 'active').length;
-
-  document.getElementById('admin-stat-total').innerText = total;
-  document.getElementById('admin-stat-pending').innerText = pending;
-  document.getElementById('admin-stat-active').innerText = active;
-
-  const q = (document.getElementById('cari-user-admin')?.value || '').toLowerCase();
-  const filtered = usersAktifNonSampah.filter(u => {
-    const n = (u.full_name || '').toLowerCase();
-    const s = (u.store_name || '').toLowerCase();
-    const e = (u.email || '').toLowerCase();
-    return n.includes(q) || s.includes(q) || e.includes(q);
-  });
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${q ? 'User tidak ditemukan.' : 'Belum ada pendaftar toko.'}</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(u => {
-    const isAdmin = u.role === 'admin';
-    const isPending = u.status === 'pending';
-
-    let teksMasaBerlaku = '-';
-    let isExpired = false;
-
-    if (isAdmin) {
-      teksMasaBerlaku = '<span class="text-indigo-600 font-extrabold text-[11px]">Selamanya (Admin)</span>';
-    } else if (u.expires_at) {
-      const expDate = new Date(u.expires_at);
-      const now = new Date();
-      isExpired = now > expDate;
-      const tglFormatted = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-
-      if (isExpired) {
-        teksMasaBerlaku = `<span class="text-rose-600 font-bold text-[11px]">Kedaluwarsa (${tglFormatted})</span>`;
-      } else {
-        teksMasaBerlaku = `<span class="text-emerald-700 font-bold text-[11px]">s.d ${tglFormatted}</span>`;
-      }
-    } else {
-      teksMasaBerlaku = '<span class="text-slate-400 italic text-[11px]">Belum diatur</span>';
-    }
-
-    let statusBadge = (isPending || isExpired)
-      ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>`
-      : `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`;
-
-    let aksiTombol = `
-      <div class="inline-flex items-center space-x-1.5">
-        ${!isAdmin ? `
-          <button onclick="bukaModalDurasiAdmin('${u.id}')" class="p-1.5 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-xl transition border border-indigo-200 shadow-2xs" title="Atur Masa Aktif Toko">
-            <i data-lucide="pencil" class="w-4 h-4"></i>
-          </button>
-          <button onclick="adminBuangUserKeSampah('${u.id}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus ke Tong Sampah">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
-        ` : '<span class="text-[10px] text-slate-400 italic">Super Admin</span>'}
-      </div>
-    `;
-
-    return `
-      <tr class="hover:bg-slate-50 transition">
-        <td class="py-3 px-3 font-bold text-slate-800">${u.full_name}</td>
-        <td class="py-3 px-3 font-semibold text-slate-700">${u.store_name}</td>
-        <td class="py-3 px-3 text-slate-500 font-mono">${u.whatsapp}</td>
-        <td class="py-3 px-3 text-slate-600">${u.email}</td>
-        <td class="py-3 px-3">${teksMasaBerlaku}</td>
-        <td class="py-3 px-3">${statusBadge}</td>
-        <td class="py-3 px-3 text-center">${aksiTombol}</td>
-      </tr>
-    `;
-  }).join('');
-  refreshIcons();
-}
-
-document.getElementById('cari-user-admin')?.addEventListener('input', renderTabelAdmin);
-
 // ================= PRODUK & PENCARIAN REAKTIF =================
 async function muatProduk() {
   if (!currentUser) return;
@@ -1055,7 +984,7 @@ async function muatUlangSemuaData() {
     console.error('Fetch Expenses Crash:', err);
   }
 
-  // Paksa render antarmuka tanpa tertahan
+  // Kemas kini keseluruhan antaramuka
   updateSemuaUI();
 }
 
@@ -1150,10 +1079,10 @@ function renderKategoriTabs() {
         </button>
         <div class="flex items-center pr-1.5 space-x-0.5 opacity-60 hover:opacity-100 transition">
           <button onclick="event.stopPropagation(); editNamaKategori('${k}', ${idx})" class="p-1 rounded-md hover:bg-black/10 transition" title="Ubah Nama">
-            <i data-lucide="pencil" class="w-3 h-3"></i>
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
           </button>
           <button onclick="event.stopPropagation(); hapusKategori('${k}')" class="p-1 rounded-md hover:bg-rose-500 hover:text-white transition" title="Hapus Kategori">
-            <i data-lucide="x" class="w-3 h-3"></i>
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       </div>
@@ -1913,7 +1842,11 @@ function renderTabelPengeluaran() {
   if (!tbody) return;
 
   const q = (document.getElementById('cari-pengeluaran')?.value || '').toLowerCase();
-  const filtered = (stateExpenses || []).filter(e => {
+  
+  // Tapis mengikut tempoh masa aktif
+  const filteredPeriode = (stateExpenses || []).filter(e => cekApakahMasukPeriode(e.created_at, periodeKeuanganAktif));
+
+  const filtered = filteredPeriode.filter(e => {
     const t = (e.title || '').toLowerCase();
     const c = (e.category || '').toLowerCase();
     const n = (e.notes || '').toLowerCase();
@@ -1921,7 +1854,7 @@ function renderTabelPengeluaran() {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">${q ? 'Pengeluaran tidak ditemukan.' : 'Belum ada catatan pengeluaran.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">${q ? 'Pengeluaran tidak ditemukan.' : 'Belum ada catatan pengeluaran pada periode ini.'}</td></tr>`;
     return;
   }
 
@@ -1960,14 +1893,18 @@ function renderTabelKeuanganPenjualan() {
 
   const q = (document.getElementById('cari-transaksi-keuangan')?.value || '').toLowerCase();
   const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
-  const filtered = transaksiAktif.filter(o => {
+  
+  // Tapis mengikut tempoh masa aktif
+  const filteredPeriode = transaksiAktif.filter(o => cekApakahMasukPeriode(o.created_at, periodeKeuanganAktif));
+
+  const filtered = filteredPeriode.filter(o => {
     const orderNo = (o.order_number || o.id || '').toLowerCase();
     const nama = (o.customer_name || '').toLowerCase();
     return orderNo.includes(q) || nama.includes(q);
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada transaksi penjualan.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada transaksi penjualan pada periode ini.</td></tr>`;
     return;
   }
 
@@ -2197,16 +2134,15 @@ document.getElementById('form-reservasi-baru')?.addEventListener('submit', async
   }
 });
 
-// ================= UPDATE SEMUA UI (DENGAN TRY-CATCH AMAN) =================
+// ================= UPDATE SEMUA UI (TERMASUK KAD KEWANGAN DINAMIK) =================
 function updateSemuaUI() {
   try {
     const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
-    const omzet = transaksiAktif.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
-    const totalPengeluaran = (stateExpenses || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const saldoBersih = omzet - totalPengeluaran;
-
+    
+    // Kiraan Dashboard Utama (Keseluruhan)
+    const omzetDash = transaksiAktif.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
     const dashOmzetEl = document.getElementById('dash-omzet');
-    if (dashOmzetEl) dashOmzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
+    if (dashOmzetEl) dashOmzetEl.innerText = 'Rp ' + omzetDash.toLocaleString('id-ID');
     const dashTrxEl = document.getElementById('dash-transaksi');
     if (dashTrxEl) dashTrxEl.innerText = transaksiAktif.length;
     const dashMenuEl = document.getElementById('dash-total-menu');
@@ -2214,25 +2150,33 @@ function updateSemuaUI() {
     const dashResEl = document.getElementById('dash-total-reservasi');
     if (dashResEl) dashResEl.innerText = (stateReservasi || []).length;
 
+    // Kiraan KHAS Catatan Kewangan (Mengikut Tempoh: Hari/Minggu/Bulan/Tahun)
+    const ordersPeriode = transaksiAktif.filter(o => cekApakahMasukPeriode(o.created_at, periodeKeuanganAktif));
+    const expensesPeriode = (stateExpenses || []).filter(e => cekApakahMasukPeriode(e.created_at, periodeKeuanganAktif));
+
+    const omzetKeuangan = ordersPeriode.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
+    const expKeuangan = expensesPeriode.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const saldoBersihKeuangan = omzetKeuangan - expKeuangan;
+
     const omzetEl = document.getElementById('keuangan-total-omzet');
-    if (omzetEl) omzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
+    if (omzetEl) omzetEl.innerText = 'Rp ' + omzetKeuangan.toLocaleString('id-ID');
 
     const expEl = document.getElementById('keuangan-total-pengeluaran');
-    if (expEl) expEl.innerText = 'Rp ' + totalPengeluaran.toLocaleString('id-ID');
+    if (expEl) expEl.innerText = 'Rp ' + expKeuangan.toLocaleString('id-ID');
 
     const expCountEl = document.getElementById('keuangan-jumlah-pengeluaran');
-    if (expCountEl) expCountEl.innerText = `${(stateExpenses || []).length} transaksi belanja`;
+    if (expCountEl) expCountEl.innerText = `${expensesPeriode.length} transaksi belanja`;
 
     const saldoEl = document.getElementById('keuangan-saldo-bersih');
     if (saldoEl) {
-      saldoEl.innerText = 'Rp ' + saldoBersih.toLocaleString('id-ID');
-      saldoEl.className = saldoBersih < 0 
+      saldoEl.innerText = 'Rp ' + saldoBersihKeuangan.toLocaleString('id-ID');
+      saldoEl.className = saldoBersihKeuangan < 0 
         ? 'text-3xl font-black text-rose-400 tracking-tight' 
         : 'text-3xl font-black text-emerald-400 tracking-tight';
     }
 
     let tunai = 0, qris = 0;
-    transaksiAktif.forEach(o => {
+    ordersPeriode.forEach(o => {
       const p = Number(o.total_price) || 0;
       if ((o.payment_method || '').toLowerCase().includes('qris')) qris += p;
       else tunai += p;
@@ -2254,7 +2198,7 @@ function updateSemuaUI() {
       }
     }
 
-    // Render masing-masing tabel
+    // Render jadual-jadual
     if (typeof renderTabelRiwayatDashboard === 'function') renderTabelRiwayatDashboard();
     if (typeof renderTabelPengeluaran === 'function') renderTabelPengeluaran();
     if (typeof renderTabelKeuanganPenjualan === 'function') renderTabelKeuanganPenjualan();
@@ -2394,6 +2338,6 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
   alert('Pengaturan toko berhasil disimpan!');
 });
 
-// Inisialisasi Aplikasi Saat Halaman Dibuka
+// Jalankan inisialisasi awal
 refreshIcons();
 cekSesiAktif();
