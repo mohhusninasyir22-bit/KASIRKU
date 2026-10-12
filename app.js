@@ -334,7 +334,7 @@ function renderTabelSampah() {
   const tbody = document.getElementById('table-sampah-body');
   if (!tbody) return;
 
-  const listSampah = stateOrders.filter(o => o.deleted_at !== null && o.deleted_at !== undefined);
+  const listSampah = (stateOrders || []).filter(o => o.deleted_at !== null && o.deleted_at !== undefined);
 
   if (listSampah.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tong sampah kosong.</td></tr>`;
@@ -882,6 +882,117 @@ async function cekSesiAktif() {
   refreshIcons();
 }
 
+// ================= PANEL SUPER ADMIN =================
+async function muatDataAdmin() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      stateAdminUsers = data;
+      renderTabelAdmin();
+    }
+  } catch (err) {}
+}
+
+function renderTabelAdmin() {
+  const tbody = document.getElementById('table-admin-users-body');
+  if (!tbody) return;
+
+  const usersAktifNonSampah = stateAdminUsers.filter(u => !u.deleted_at);
+  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
+
+  const badgeSampahAdmin = document.getElementById('badge-counter-admin-sampah');
+  if (badgeSampahAdmin) {
+    if (usersSampah.length > 0) {
+      badgeSampahAdmin.innerText = usersSampah.length;
+      badgeSampahAdmin.classList.remove('hidden');
+    } else {
+      badgeSampahAdmin.classList.add('hidden');
+    }
+  }
+
+  const total = usersAktifNonSampah.length;
+  const pending = usersAktifNonSampah.filter(u => u.status === 'pending').length;
+  const active = usersAktifNonSampah.filter(u => u.status === 'active').length;
+
+  document.getElementById('admin-stat-total').innerText = total;
+  document.getElementById('admin-stat-pending').innerText = pending;
+  document.getElementById('admin-stat-active').innerText = active;
+
+  const q = (document.getElementById('cari-user-admin')?.value || '').toLowerCase();
+  const filtered = usersAktifNonSampah.filter(u => {
+    const n = (u.full_name || '').toLowerCase();
+    const s = (u.store_name || '').toLowerCase();
+    const e = (u.email || '').toLowerCase();
+    return n.includes(q) || s.includes(q) || e.includes(q);
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${q ? 'User tidak ditemukan.' : 'Belum ada pendaftar toko.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(u => {
+    const isAdmin = u.role === 'admin';
+    const isPending = u.status === 'pending';
+
+    let teksMasaBerlaku = '-';
+    let isExpired = false;
+
+    if (isAdmin) {
+      teksMasaBerlaku = '<span class="text-indigo-600 font-extrabold text-[11px]">Selamanya (Admin)</span>';
+    } else if (u.expires_at) {
+      const expDate = new Date(u.expires_at);
+      const now = new Date();
+      isExpired = now > expDate;
+      const tglFormatted = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      if (isExpired) {
+        teksMasaBerlaku = `<span class="text-rose-600 font-bold text-[11px]">Kedaluwarsa (${tglFormatted})</span>`;
+      } else {
+        teksMasaBerlaku = `<span class="text-emerald-700 font-bold text-[11px]">s.d ${tglFormatted}</span>`;
+      }
+    } else {
+      teksMasaBerlaku = '<span class="text-slate-400 italic text-[11px]">Belum diatur</span>';
+    }
+
+    let statusBadge = (isPending || isExpired)
+      ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>`
+      : `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`;
+
+    let aksiTombol = `
+      <div class="inline-flex items-center space-x-1.5">
+        ${!isAdmin ? `
+          <button onclick="bukaModalDurasiAdmin('${u.id}')" class="p-1.5 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-xl transition border border-indigo-200 shadow-2xs" title="Atur Masa Aktif Toko">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+          </button>
+          <button onclick="adminBuangUserKeSampah('${u.id}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus ke Tong Sampah">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        ` : '<span class="text-[10px] text-slate-400 italic">Super Admin</span>'}
+      </div>
+    `;
+
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-3 px-3 font-bold text-slate-800">${u.full_name}</td>
+        <td class="py-3 px-3 font-semibold text-slate-700">${u.store_name}</td>
+        <td class="py-3 px-3 text-slate-500 font-mono">${u.whatsapp}</td>
+        <td class="py-3 px-3 text-slate-600">${u.email}</td>
+        <td class="py-3 px-3">${teksMasaBerlaku}</td>
+        <td class="py-3 px-3">${statusBadge}</td>
+        <td class="py-3 px-3 text-center">${aksiTombol}</td>
+      </tr>
+    `;
+  }).join('');
+  refreshIcons();
+}
+
+document.getElementById('cari-user-admin')?.addEventListener('input', renderTabelAdmin);
+
 // ================= PRODUK & PENCARIAN REAKTIF =================
 async function muatProduk() {
   if (!currentUser) return;
@@ -897,39 +1008,54 @@ async function muatProduk() {
       filterProduk();
     }
     const elTotalMenu = document.getElementById('dash-total-menu');
-    if (elTotalMenu) elTotalMenu.innerText = daftarProduk.length;
+    if (elTotalMenu) elTotalMenu.innerText = (daftarProduk || []).length;
   } catch (e) {}
 }
 
+// ================= AMBIL DATA KASIR (ORDERS, RESERVASI, EXPENSES) =================
 async function muatUlangSemuaData() {
   if (!currentUser) return;
+
+  // 1. Ambil Orders
   try {
-    const resOrd = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('orders')
       .select('*')
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false });
-    if (!resOrd.error && resOrd.data) stateOrders = resOrd.data;
-  } catch (err) {}
+    if (!error && data) stateOrders = data;
+    else if (error) console.error('Error Orders:', error.message);
+  } catch (err) {
+    console.error('Fetch Orders Crash:', err);
+  }
 
+  // 2. Ambil Reservations
   try {
-    const resRes = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('reservations')
       .select('*')
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false });
-    if (!resRes.error && resRes.data) stateReservasi = resRes.data;
-  } catch (err) {}
+    if (!error && data) stateReservasi = data;
+    else if (error) console.error('Error Reservations:', error.message);
+  } catch (err) {
+    console.error('Fetch Reservations Crash:', err);
+  }
 
+  // 3. Ambil Expenses
   try {
-    const resExp = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('expenses')
       .select('*')
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false });
-    if (!resExp.error && resExp.data) stateExpenses = resExp.data;
-  } catch (err) {}
+    if (!error && data) stateExpenses = data;
+    else if (error) console.error('Error Expenses:', error.message);
+  } catch (err) {
+    console.error('Fetch Expenses Crash:', err);
+  }
 
+  // Paksa render antarmuka tanpa tertahan
   updateSemuaUI();
 }
 
@@ -937,7 +1063,7 @@ function filterProduk() {
   const inputEl = document.getElementById('cari-produk');
   const q = (inputEl ? inputEl.value : '').toLowerCase().trim();
 
-  const filtered = daftarProduk.filter(p => {
+  const filtered = (daftarProduk || []).filter(p => {
     const cocokNama = (p.name || '').toLowerCase().includes(q);
     const cocokBarcode = (p.barcode || '').toLowerCase().includes(q);
     const cocokKat = (kategoriAktif === 'Semua') || ((p.category || 'Makanan').toLowerCase() === kategoriAktif.toLowerCase());
@@ -953,7 +1079,7 @@ document.getElementById('cari-produk')?.addEventListener('input', () => {
 function renderKartu(items) {
   const grid = document.getElementById('grid-produk');
   if (!grid) return;
-  if (items.length === 0) {
+  if (!items || items.length === 0) {
     grid.innerHTML = '<p class="text-slate-400 text-xs col-span-full text-center py-12">Produk tidak ditemukan.</p>';
     return;
   }
@@ -1024,10 +1150,10 @@ function renderKategoriTabs() {
         </button>
         <div class="flex items-center pr-1.5 space-x-0.5 opacity-60 hover:opacity-100 transition">
           <button onclick="event.stopPropagation(); editNamaKategori('${k}', ${idx})" class="p-1 rounded-md hover:bg-black/10 transition" title="Ubah Nama">
-            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            <i data-lucide="pencil" class="w-3 h-3"></i>
           </button>
           <button onclick="event.stopPropagation(); hapusKategori('${k}')" class="p-1 rounded-md hover:bg-rose-500 hover:text-white transition" title="Hapus Kategori">
-            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            <i data-lucide="x" class="w-3 h-3"></i>
           </button>
         </div>
       </div>
@@ -1194,13 +1320,13 @@ document.addEventListener('click', () => {
 });
 
 window.editProdukById = function(id) {
-  const prod = daftarProduk.find(p => p.id === id);
+  const prod = (daftarProduk || []).find(p => p.id === id);
   if (prod) bukaModalFormProduk(prod);
 };
 
 // ================= VARIAN & CATATAN =================
 window.mulaiTambahItem = function(id) {
-  const item = daftarProduk.find(p => p.id === id);
+  const item = (daftarProduk || []).find(p => p.id === id);
   if (!item) return;
 
   document.getElementById('modal-opsi-item-id').value = item.id;
@@ -1252,7 +1378,7 @@ window.tutupModalOpsiItem = function() {
 
 window.konfirmasiTambahDenganOpsi = function() {
   const prodId = document.getElementById('modal-opsi-item-id').value;
-  const item = daftarProduk.find(p => p.id === prodId);
+  const item = (daftarProduk || []).find(p => p.id === prodId);
   if (!item) return;
 
   const catatan = document.getElementById('input-opsi-catatan').value.trim() || null;
@@ -1276,59 +1402,546 @@ window.konfirmasiTambahDenganOpsi = function() {
   renderKeranjang();
 };
 
-// ================= RENDER RIWAYAT DASHBOARD =================
-document.getElementById('cari-transaksi-dash')?.addEventListener('input', () => {
-  renderTabelRiwayatDashboard();
-});
+// ================= KERANJANG & CHECKOUT FLOW =================
+window.ubahQty = function(cartKey, d) {
+  const i = keranjang.findIndex(k => k.cartKey === cartKey);
+  if (i === -1) return;
+  keranjang[i].qty += d;
+  if (keranjang[i].qty <= 0) keranjang.splice(i, 1);
+  renderKeranjang();
+};
 
-function renderTabelRiwayatDashboard() {
-  const tbody = document.getElementById('dash-table-body');
-  if (!tbody) return;
+window.bersihkanKeranjang = function() {
+  keranjang = [];
+  renderKeranjang();
+  tutupSheetPesananMobile();
+};
 
-  const q = (document.getElementById('cari-transaksi-dash')?.value || '').toLowerCase();
-  const filteredOrders = stateOrders.filter(o => {
-    const isNotDeleted = (o.deleted_at === null || o.deleted_at === undefined);
-    const noOrder = (o.order_number || o.id || '').toLowerCase();
-    const nama = (o.customer_name || '').toLowerCase();
-    const meja = (o.table_number || '').toLowerCase();
-    const tipe = (o.order_type || '').toLowerCase();
-    return isNotDeleted && (noOrder.includes(q) || nama.includes(q) || meja.includes(q) || tipe.includes(q));
-  });
+function hitungTotal() {
+  return keranjang.reduce((s, i) => s + (i.price * i.qty), 0);
+}
 
-  if (filteredOrders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${q ? 'Tidak ada transaksi yang cocok.' : 'Belum ada transaksi tercatat.'}</td></tr>`;
+function renderKeranjang() {
+  const listDesktop = document.getElementById('list-keranjang');
+  const listMobile = document.getElementById('list-keranjang-mobile');
+  const totalEl = document.getElementById('total-tagihan');
+  const totalElMobile = document.getElementById('total-tagihan-mobile');
+  const btn = document.getElementById('btn-buka-bayar');
+  const counterEl = document.getElementById('label-qty-counter');
+  const counterElMobile = document.getElementById('label-qty-counter-mobile');
+
+  const floatingBar = document.getElementById('floating-checkout-bar');
+  const floatQty = document.getElementById('mobile-floating-qty');
+  const floatTotal = document.getElementById('mobile-floating-total');
+
+  const totalItemCount = keranjang.reduce((s, i) => s + i.qty, 0);
+  const totalNominal = hitungTotal();
+
+  if (counterEl) counterEl.innerText = `${totalItemCount} item terpilih`;
+  if (counterElMobile) counterElMobile.innerText = `${totalItemCount} item terpilih`;
+  if (totalEl) totalEl.innerText = 'Rp ' + totalNominal.toLocaleString('id-ID');
+  if (totalElMobile) totalElMobile.innerText = 'Rp ' + totalNominal.toLocaleString('id-ID');
+
+  if (floatingBar) {
+    if (totalItemCount > 0) {
+      floatingBar.classList.remove('hidden');
+      if (floatQty) floatQty.innerText = totalItemCount;
+      if (floatTotal) floatTotal.innerText = 'Rp ' + totalNominal.toLocaleString('id-ID');
+    } else {
+      floatingBar.classList.add('hidden');
+      tutupSheetPesananMobile();
+    }
+  }
+
+  if (keranjang.length === 0) {
+    const emptyState = `
+      <div class="h-full flex flex-col items-center justify-center text-slate-400 py-10">
+        <i data-lucide="shopping-cart" class="w-10 h-10 stroke-[1.5] mb-2 text-slate-300"></i>
+        <p class="text-xs font-medium">Keranjang masih kosong</p>
+      </div>
+    `;
+    if (listDesktop) listDesktop.innerHTML = emptyState;
+    if (listMobile) listMobile.innerHTML = emptyState;
+
+    if (btn) {
+      btn.disabled = true;
+      btn.className = 'w-full bg-slate-200 text-slate-400 font-bold py-3.5 rounded-2xl text-xs sm:text-sm transition flex items-center justify-center space-x-2';
+    }
+    refreshIcons();
     return;
   }
 
-  tbody.innerHTML = filteredOrders.map(o => {
-    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
-    const waktu = o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
-    const infoPelanggan = o.customer_name ? o.customer_name : (o.table_number ? `Meja ${o.table_number}` : 'Umum');
-    const tipeBadge = o.order_type || 'Dine In';
-    const metode = o.payment_method || 'Tunai';
-    const isQris = metode.toLowerCase().includes('qris');
+  const itemsHtml = keranjang.map(k => {
+    const subtotal = k.price * k.qty;
+
+    let badgeSuhu = '';
+    if (k.temperature === 'Ice') {
+      badgeSuhu = '<span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-cyan-100 text-cyan-800 mr-1"><i data-lucide="snowflake" class="w-2.5 h-2.5 mr-0.5"></i>Ice</span>';
+    } else if (k.temperature === 'Hot') {
+      badgeSuhu = '<span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-orange-100 text-orange-800 mr-1"><i data-lucide="flame" class="w-2.5 h-2.5 mr-0.5"></i>Hot</span>';
+    }
+
+    const teksCatatan = k.notes ? `<p class="text-[10px] text-amber-600 font-medium italic mt-0.5 truncate">Catatan: "${k.notes}"</p>` : '';
 
     return `
-      <tr class="hover:bg-slate-50/80 transition">
-        <td class="py-3 px-3 font-bold text-slate-800">#${orderNo}</td>
-        <td class="py-3 px-3 text-slate-400 text-[11px]">${waktu}</td>
-        <td class="py-3 px-3 font-semibold text-slate-700">${infoPelanggan} ${o.table_number && o.customer_name ? `<span class="text-[10px] text-slate-400">(Meja ${o.table_number})</span>` : ''}</td>
+      <div class="flex items-center justify-between bg-slate-50 hover:bg-slate-100/80 p-2.5 rounded-2xl border border-slate-200/70 text-xs transition">
+        <div class="truncate pr-2 flex-1">
+          <div class="flex items-center truncate">
+            ${badgeSuhu}
+            <p class="font-bold text-slate-800 truncate">${k.name}</p>
+          </div>
+          ${teksCatatan}
+          <div class="flex items-center space-x-2 mt-0.5">
+            <span class="text-[10px] text-slate-400">@ Rp ${Number(k.price).toLocaleString('id-ID')}</span>
+            <span class="text-[11px] font-black text-emerald-600">Rp ${subtotal.toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+        <div class="flex items-center space-x-1.5 shrink-0 bg-white border border-slate-200 rounded-xl p-1 shadow-2xs">
+          <button onclick="ubahQty('${k.cartKey}', -1)" class="w-6 h-6 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-bold text-xs flex items-center justify-center transition active:scale-95">-</button>
+          <span class="w-6 text-center font-black text-slate-800 text-xs">${k.qty}</span>
+          <button onclick="ubahQty('${k.cartKey}', 1)" class="w-6 h-6 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg font-bold text-xs flex items-center justify-center transition active:scale-95">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (listDesktop) listDesktop.innerHTML = itemsHtml;
+  if (listMobile) listMobile.innerHTML = itemsHtml;
+
+  if (btn) {
+    btn.disabled = false;
+    btn.className = 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-emerald-600/25 flex items-center justify-center space-x-2 cursor-pointer';
+  }
+  refreshIcons();
+}
+
+// ================= MODAL PEMBAYARAN =================
+window.bukaModalPembayaran = function() {
+  const tot = hitungTotal();
+  document.getElementById('bayar-modal-total').innerText = 'Rp ' + tot.toLocaleString('id-ID');
+  document.getElementById('input-uang-diterima').value = '';
+  hitungKembalian();
+
+  const namaP = document.getElementById('order-nama-pelanggan')?.value.trim() || document.getElementById('order-nama-pelanggan-mobile')?.value.trim() || '';
+  const mejaP = document.getElementById('order-no-meja')?.value.trim() || document.getElementById('order-no-meja-mobile')?.value.trim() || '';
+  
+  document.getElementById('struk-preview-tipe').innerText = tipePesananAktif + (mejaP ? ' • ' + mejaP : '');
+  document.getElementById('struk-preview-pelanggan').innerText = namaP ? 'Atas Nama: ' + namaP : 'Pelanggan Umum';
+
+  const qrisFotoSupabase = currentProfile?.qris_image || localStorage.getItem('pos_qris_foto_base64');
+  if (qrisFotoSupabase) {
+    document.getElementById('img-qris-display').src = qrisFotoSupabase;
+  } else {
+    document.getElementById('img-qris-display').src = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS_' + tot;
+  }
+
+  document.getElementById('qris-nominal-text').innerText = 'Total: Rp ' + tot.toLocaleString('id-ID');
+
+  pilihMetode('Tunai');
+  const modalBayar = document.getElementById('modal-bayar-backdrop');
+  if (modalBayar) {
+    modalBayar.classList.remove('hidden');
+    modalBayar.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalPembayaran = function() {
+  const modalBayar = document.getElementById('modal-bayar-backdrop');
+  if (modalBayar) {
+    modalBayar.classList.add('hidden');
+    modalBayar.classList.remove('flex');
+  }
+};
+
+function pilihMetode(metode) {
+  metodeDipilih = metode;
+  const tabT = document.getElementById('tab-metode-tunai');
+  const tabN = document.getElementById('tab-metode-nontunai');
+  const panT = document.getElementById('panel-tunai');
+  const panN = document.getElementById('panel-nontunai');
+
+  if (metode === 'Tunai') {
+    if (tabT) tabT.className = 'py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-700 shadow-sm flex items-center justify-center space-x-1.5 transition';
+    if (tabN) tabN.className = 'py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition';
+    if (panT) panT.classList.remove('hidden');
+    if (panN) panN.classList.add('hidden');
+  } else {
+    if (tabN) tabN.className = 'py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-700 shadow-sm flex items-center justify-center space-x-1.5 transition';
+    if (tabT) tabT.className = 'py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition';
+    if (panN) panN.classList.remove('hidden');
+    if (panT) panT.classList.add('hidden');
+  }
+  refreshIcons();
+}
+
+document.getElementById('tab-metode-tunai')?.addEventListener('click', () => pilihMetode('Tunai'));
+document.getElementById('tab-metode-nontunai')?.addEventListener('click', () => pilihMetode('Non-Tunai (QRIS GoPay)'));
+
+window.setUangCepat = function(val) {
+  document.getElementById('input-uang-diterima').value = (val === 'pas') ? hitungTotal() : val;
+  hitungKembalian();
+};
+
+document.getElementById('input-uang-diterima')?.addEventListener('input', hitungKembalian);
+
+function hitungKembalian() {
+  const tot = hitungTotal();
+  const bayar = Number(document.getElementById('input-uang-diterima')?.value) || 0;
+  const kembali = bayar - tot;
+  const el = document.getElementById('label-kembalian');
+  if (!el) return;
+  if (kembali < 0) {
+    el.innerText = 'Kurang Rp ' + Math.abs(kembali).toLocaleString('id-ID');
+    el.className = 'text-base font-extrabold text-rose-500';
+  } else {
+    el.innerText = 'Rp ' + kembali.toLocaleString('id-ID');
+    el.className = 'text-base font-extrabold text-emerald-600';
+  }
+}
+
+// ================= SIMPAN TRANSAKSI =================
+document.getElementById('btn-konfirmasi-bayar')?.addEventListener('click', async () => {
+  if (!currentUser) return;
+
+  const total = hitungTotal();
+  const bayar = Number(document.getElementById('input-uang-diterima').value) || 0;
+  if (metodeDipilih === 'Tunai' && bayar < total) return alert('Nominal uang tunai diterima masih kurang!');
+
+  const btnBayar = document.getElementById('btn-konfirmasi-bayar');
+  btnBayar.disabled = true;
+  btnBayar.innerText = 'Menyimpan...';
+
+  const orderNumber = 'ORD-' + Date.now().toString().slice(-6);
+  const namaPelanggan = document.getElementById('order-nama-pelanggan')?.value.trim() || document.getElementById('order-nama-pelanggan-mobile')?.value.trim() || null;
+  const noMeja = document.getElementById('order-no-meja')?.value.trim() || document.getElementById('order-no-meja-mobile')?.value.trim() || null;
+
+  const nominalBayarFinal = (metodeDipilih === 'Tunai') ? bayar : total;
+  const nominalKembalianFinal = (metodeDipilih === 'Tunai') ? Math.max(0, bayar - total) : 0;
+
+  const itemsDetailList = keranjang.map(k => ({
+    product_id: k.id,
+    name: k.name,
+    price: k.price,
+    qty: k.qty,
+    temperature: k.temperature || null,
+    notes: k.notes || null,
+    subtotal: k.price * k.qty
+  }));
+
+  const payload = {
+    user_id: currentUser.id,
+    total_price: total,
+    payment_method: metodeDipilih,
+    status: 'completed',
+    order_number: orderNumber,
+    order_type: tipePesananAktif,
+    customer_name: namaPelanggan,
+    table_number: noMeja,
+    items_detail: itemsDetailList,
+    amount_paid: nominalBayarFinal,
+    change_amount: nominalKembalianFinal,
+    deleted_at: null
+  };
+
+  const { data: newOrder, error: errOrder } = await supabaseClient
+    .from('orders')
+    .insert([payload])
+    .select()
+    .single();
+
+  if (errOrder) {
+    alert('Gagal simpan transaksi: ' + errOrder.message);
+    btnBayar.disabled = false;
+    btnBayar.innerText = 'Konfirmasi Pembayaran Selesai';
+    return;
+  }
+
+  if (newOrder?.id) {
+    const itemsOrderTable = keranjang.map(k => {
+      let namaLengkap = k.name;
+      if (k.temperature) namaLengkap += ` (${k.temperature})`;
+      if (k.notes) namaLengkap += ` [${k.notes}]`;
+
+      return {
+        order_id: newOrder.id,
+        product_id: k.id,
+        product_name: namaLengkap,
+        temperature: k.temperature || null,
+        notes: k.notes || null,
+        quantity: k.qty,
+        price: k.price
+      };
+    });
+    await supabaseClient.from('order_items').insert(itemsOrderTable);
+    
+    newOrder.items_detail = itemsDetailList;
+    newOrder.amount_paid = nominalBayarFinal;
+    newOrder.change_amount = nominalKembalianFinal;
+
+    stateOrders.unshift(newOrder);
+    updateSemuaUI();
+  }
+
+  tutupModalPembayaran();
+  btnBayar.disabled = false;
+  btnBayar.innerText = 'Konfirmasi Pembayaran Selesai';
+
+  bukaModalStruk(newOrder || payload, itemsDetailList, nominalBayarFinal, total, nominalKembalianFinal);
+
+  keranjang = [];
+  const elNamaDesk = document.getElementById('order-nama-pelanggan');
+  if (elNamaDesk) elNamaDesk.value = '';
+  const elNamaMob = document.getElementById('order-nama-pelanggan-mobile');
+  if (elNamaMob) elNamaMob.value = '';
+  const elMejaDesk = document.getElementById('order-no-meja');
+  if (elMejaDesk) elMejaDesk.value = '';
+  const elMejaMob = document.getElementById('order-no-meja-mobile');
+  if (elMejaMob) elMejaMob.value = '';
+  
+  renderKeranjang();
+  muatUlangSemuaData();
+});
+
+// ================= STRUK LENGKAP =================
+function bukaModalStruk(orderData, itemsList, uangBayar = null, totalNominal = null, kembalianFix = null) {
+  const orderId = orderData.order_number || (orderData.id ? orderData.id.toString().slice(0, 8) : '-');
+  const orderTipe = (orderData.order_type || 'Dine In') + 
+    (orderData.table_number ? ` (Meja: ${orderData.table_number})` : '') + 
+    (orderData.customer_name ? ` - ${orderData.customer_name}` : '');
+  const waktu = orderData.created_at ? new Date(orderData.created_at).toLocaleString('id-ID') : new Date().toLocaleString('id-ID');
+  const tot = (totalNominal !== null && totalNominal !== undefined) ? totalNominal : (Number(orderData.total_price) || 0);
+  const metode = orderData.payment_method || 'Tunai';
+
+  document.getElementById('struk-id').innerText = orderId;
+  document.getElementById('struk-tanggal').innerText = waktu;
+  document.getElementById('struk-tipe-order').innerText = orderTipe;
+  document.getElementById('struk-metode').innerText = metode;
+
+  const listItemsEl = document.getElementById('struk-items');
+  let finalItems = itemsList || [];
+  if ((!finalItems || finalItems.length === 0) && orderData.items_detail && Array.isArray(orderData.items_detail)) {
+    finalItems = orderData.items_detail;
+  }
+
+  if (finalItems && finalItems.length > 0) {
+    listItemsEl.innerHTML = finalItems.map(k => {
+      const namaItem = k.name || k.product_name || 'Menu';
+      const kuantitas = k.qty || k.quantity || 1;
+      const hargaSatuan = k.price || 0;
+      const totalHarga = k.subtotal || (hargaSatuan * kuantitas);
+
+      const suhuText = k.temperature ? `<span class="text-[9px] font-bold text-slate-500 uppercase">(${k.temperature})</span>` : '';
+      const catatanText = k.notes ? `<span class="text-[9px] text-slate-400 italic block mt-0.5">* ${k.notes}</span>` : '';
+
+      return `
+        <div class="flex justify-between items-start">
+          <div class="pr-2 flex-1">
+            <span class="font-bold text-slate-800">${namaItem} ${suhuText}</span>
+            ${catatanText}
+            <span class="text-[10px] text-slate-400 block">${kuantitas} x Rp ${Number(hargaSatuan).toLocaleString('id-ID')}</span>
+          </div>
+          <span class="font-bold text-slate-800 shrink-0">Rp ${Number(totalHarga).toLocaleString('id-ID')}</span>
+        </div>
+      `;
+    }).join('');
+  } else {
+    listItemsEl.innerHTML = `
+      <div class="flex justify-between">
+        <span>Transaksi Kasir</span>
+        <span>Rp ${Number(tot).toLocaleString('id-ID')}</span>
+      </div>
+    `;
+  }
+
+  document.getElementById('struk-total').innerText = 'Rp ' + Number(tot).toLocaleString('id-ID');
+
+  if (metode.toLowerCase().includes('qris')) {
+    document.getElementById('struk-bayar').innerText = 'LUNAS (QRIS)';
+    document.getElementById('struk-kembali').innerText = 'Rp 0';
+  } else {
+    let bayarTampil = tot;
+    if (uangBayar !== null && uangBayar !== undefined && uangBayar > 0) {
+      bayarTampil = uangBayar;
+    } else if (orderData.amount_paid && Number(orderData.amount_paid) > 0) {
+      bayarTampil = Number(orderData.amount_paid);
+    }
+
+    let kembaliTampil = Math.max(0, bayarTampil - tot);
+    if (kembalianFix !== null && kembalianFix !== undefined) {
+      kembaliTampil = kembalianFix;
+    } else if (orderData.change_amount !== undefined && orderData.change_amount !== null) {
+      kembaliTampil = Number(orderData.change_amount);
+    }
+
+    document.getElementById('struk-bayar').innerText = 'Rp ' + Number(bayarTampil).toLocaleString('id-ID');
+    document.getElementById('struk-kembali').innerText = 'Rp ' + Number(kembaliTampil).toLocaleString('id-ID');
+  }
+
+  const modal = document.getElementById('modal-struk-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+}
+
+window.cetakUlangStrukRiwayat = async function(orderId) {
+  const order = stateOrders.find(o => o.id === orderId);
+  if (!order) return;
+
+  let items = [];
+  if (order.items_detail && Array.isArray(order.items_detail) && order.items_detail.length > 0) {
+    items = order.items_detail;
+  } else {
+    const { data: itemData } = await supabaseClient
+      .from('order_items')
+      .select('*')
+      .eq('order_id', order.id);
+
+    if (itemData && itemData.length > 0) {
+      items = itemData;
+      order.items_detail = itemData;
+    }
+  }
+
+  const bayarTersimpan = order.amount_paid ? Number(order.amount_paid) : order.total_price;
+  const kembalianTersimpan = order.change_amount !== undefined ? Number(order.change_amount) : Math.max(0, bayarTersimpan - order.total_price);
+
+  bukaModalStruk(order, items, bayarTersimpan, order.total_price, kembalianTersimpan);
+};
+
+document.getElementById('btn-tutup-struk')?.addEventListener('click', () => {
+  const modal = document.getElementById('modal-struk-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+});
+
+document.getElementById('btn-cetak')?.addEventListener('click', () => window.print());
+
+// ================= EDIT TRANSAKSI =================
+document.getElementById('form-edit-order')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const orderId = document.getElementById('edit-order-id').value;
+  const nama = document.getElementById('edit-order-nama').value.trim() || null;
+  const meja = document.getElementById('edit-order-meja').value.trim() || null;
+  const tipe = document.getElementById('edit-order-tipe').value;
+  const metode = document.getElementById('edit-order-metode').value;
+
+  const { error } = await supabaseClient
+    .from('orders')
+    .update({
+      customer_name: nama,
+      table_number: meja,
+      order_type: tipe,
+      payment_method: metode
+    })
+    .eq('id', orderId)
+    .eq('user_id', currentUser.id);
+
+  if (error) {
+    alert('Gagal mengubah transaksi: ' + error.message);
+  } else {
+    const orderIndex = stateOrders.findIndex(o => o.id === orderId);
+    if (orderIndex !== -1) {
+      stateOrders[orderIndex].customer_name = nama;
+      stateOrders[orderIndex].table_number = meja;
+      stateOrders[orderIndex].order_type = tipe;
+      stateOrders[orderIndex].payment_method = metode;
+    }
+    tutupModalEditOrder();
+    updateSemuaUI();
+  }
+});
+
+// ================= PENGELUARAN =================
+document.getElementById('form-kelola-pengeluaran')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const id = document.getElementById('form-exp-id').value;
+  const title = document.getElementById('form-exp-title').value.trim();
+  const amount = Number(document.getElementById('form-exp-amount').value);
+  const category = document.getElementById('form-exp-category').value;
+  const notes = document.getElementById('form-exp-notes').value.trim() || null;
+
+  const payload = {
+    user_id: currentUser.id,
+    title: title,
+    amount: amount,
+    category: category,
+    notes: notes
+  };
+
+  let error = null;
+  if (id) {
+    const res = await supabaseClient.from('expenses').update(payload).eq('id', id).eq('user_id', currentUser.id);
+    error = res.error;
+  } else {
+    const res = await supabaseClient.from('expenses').insert([payload]);
+    error = res.error;
+  }
+
+  if (error) {
+    alert('Gagal menyimpan pengeluaran: ' + error.message);
+  } else {
+    tutupModalFormPengeluaran();
+    await muatUlangSemuaData();
+  }
+});
+
+window.editPengeluaranById = function(id) {
+  const exp = (stateExpenses || []).find(e => e.id === id);
+  if (exp) bukaModalFormPengeluaran(exp);
+};
+
+window.hapusPengeluaran = async function(id) {
+  if (!confirm('Yakin ingin menghapus catatan pengeluaran ini?')) return;
+  const { error } = await supabaseClient.from('expenses').delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) {
+    alert('Gagal menghapus: ' + error.message);
+  } else {
+    stateExpenses = stateExpenses.filter(e => e.id !== id);
+    updateSemuaUI();
+  }
+};
+
+function renderTabelPengeluaran() {
+  const tbody = document.getElementById('table-pengeluaran-body');
+  if (!tbody) return;
+
+  const q = (document.getElementById('cari-pengeluaran')?.value || '').toLowerCase();
+  const filtered = (stateExpenses || []).filter(e => {
+    const t = (e.title || '').toLowerCase();
+    const c = (e.category || '').toLowerCase();
+    const n = (e.notes || '').toLowerCase();
+    return t.includes(q) || c.includes(q) || n.includes(q);
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">${q ? 'Pengeluaran tidak ditemukan.' : 'Belum ada catatan pengeluaran.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(e => {
+    const waktu = e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-3 px-3 text-slate-500">${waktu}</td>
+        <td class="py-3 px-3 font-bold text-slate-800">${e.title}</td>
         <td class="py-3 px-3">
-          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${tipeBadge === 'Dine In' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}">${tipeBadge}</span>
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${e.category || 'Operasional'}</span>
         </td>
-        <td class="py-3 px-3">
-          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${isQris ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${metode}</span>
-        </td>
-        <td class="py-3 px-3 text-right font-black text-emerald-600">Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
+        <td class="py-3 px-3 text-slate-400 italic">${e.notes || '-'}</td>
+        <td class="py-3 px-3 text-right font-black text-rose-600">- Rp ${Number(e.amount).toLocaleString('id-ID')}</td>
         <td class="py-3 px-3 text-center">
           <div class="inline-flex items-center space-x-1">
-            <button onclick="cetakUlangStrukRiwayat('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-600 rounded-lg transition shadow-2xs" title="Lihat Struk">
-              <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
-            </button>
-            <button onclick="bukaModalEditOrder('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 rounded-lg transition shadow-2xs" title="Edit Transaksi">
+            <button onclick="editPengeluaranById('${e.id}')" class="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 rounded-lg transition" title="Ubah Pengeluaran">
               <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
             </button>
-            <button onclick="hapusKeSampah('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-600 rounded-lg transition shadow-2xs" title="Hapus ke Tong Sampah">
+            <button onclick="hapusPengeluaran('${e.id}')" class="p-1.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-600 rounded-lg transition" title="Hapus Pengeluaran">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
@@ -1339,71 +1952,320 @@ function renderTabelRiwayatDashboard() {
   refreshIcons();
 }
 
-function updateSemuaUI() {
-  const transaksiAktif = stateOrders.filter(o => o.deleted_at === null || o.deleted_at === undefined);
-  const omzet = transaksiAktif.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
-  const totalPengeluaran = stateExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const saldoBersih = omzet - totalPengeluaran;
+document.getElementById('cari-pengeluaran')?.addEventListener('input', renderTabelPengeluaran);
 
-  const dashOmzetEl = document.getElementById('dash-omzet');
-  if (dashOmzetEl) dashOmzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
-  const dashTrxEl = document.getElementById('dash-transaksi');
-  if (dashTrxEl) dashTrxEl.innerText = transaksiAktif.length;
-  const dashMenuEl = document.getElementById('dash-total-menu');
-  if (dashMenuEl) dashMenuEl.innerText = daftarProduk.length;
-  const dashResEl = document.getElementById('dash-total-reservasi');
-  if (dashResEl) dashResEl.innerText = stateReservasi.length;
+function renderTabelKeuanganPenjualan() {
+  const tbody = document.getElementById('table-keuangan-penjualan-body');
+  if (!tbody) return;
 
-  const omzetEl = document.getElementById('keuangan-total-omzet');
-  if (omzetEl) omzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
-
-  const expEl = document.getElementById('keuangan-total-pengeluaran');
-  if (expEl) expEl.innerText = 'Rp ' + totalPengeluaran.toLocaleString('id-ID');
-
-  const expCountEl = document.getElementById('keuangan-jumlah-pengeluaran');
-  if (expCountEl) expCountEl.innerText = `${stateExpenses.length} transaksi belanja`;
-
-  const saldoEl = document.getElementById('keuangan-saldo-bersih');
-  if (saldoEl) {
-    saldoEl.innerText = 'Rp ' + saldoBersih.toLocaleString('id-ID');
-    if (saldoBersih < 0) {
-      saldoEl.className = 'text-3xl font-black text-rose-400 tracking-tight';
-    } else {
-      saldoEl.className = 'text-3xl font-black text-emerald-400 tracking-tight';
-    }
-  }
-
-  let tunai = 0, qris = 0;
-  transaksiAktif.forEach(o => {
-    const p = Number(o.total_price) || 0;
-    if ((o.payment_method || '').toLowerCase().includes('qris')) qris += p;
-    else tunai += p;
+  const q = (document.getElementById('cari-transaksi-keuangan')?.value || '').toLowerCase();
+  const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
+  const filtered = transaksiAktif.filter(o => {
+    const orderNo = (o.order_number || o.id || '').toLowerCase();
+    const nama = (o.customer_name || '').toLowerCase();
+    return orderNo.includes(q) || nama.includes(q);
   });
 
-  const subTunaiEl = document.getElementById('keuangan-sub-tunai');
-  if (subTunaiEl) subTunaiEl.innerText = 'Rp ' + tunai.toLocaleString('id-ID');
-  const subQrisEl = document.getElementById('keuangan-sub-qris');
-  if (subQrisEl) subQrisEl.innerText = 'Rp ' + qris.toLocaleString('id-ID');
-
-  const totalSampah = stateOrders.filter(o => o.deleted_at !== null && o.deleted_at !== undefined).length;
-  const badgeSampah = document.getElementById('badge-counter-sampah');
-  if (badgeSampah) {
-    if (totalSampah > 0) {
-      badgeSampah.innerText = totalSampah;
-      badgeSampah.classList.remove('hidden');
-    } else {
-      badgeSampah.classList.add('hidden');
-    }
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada transaksi penjualan.</td></tr>`;
+    return;
   }
 
-  renderTabelRiwayatDashboard();
-  renderTabelPengeluaran();
-  renderTabelKeuanganPenjualan();
-  renderTabelOrder();
-  renderTabelReservasi();
-  renderKeranjang();
+  tbody.innerHTML = filtered.map(o => {
+    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
+    const waktu = o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+    const pelanggan = o.customer_name ? o.customer_name : (o.table_number ? `Meja ${o.table_number}` : 'Umum');
+    const metode = o.payment_method || 'Tunai';
 
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-3 px-3 font-bold text-slate-800">#${orderNo}</td>
+        <td class="py-3 px-3 text-slate-400">${waktu}</td>
+        <td class="py-3 px-3 font-semibold text-slate-700">${pelanggan}</td>
+        <td class="py-3 px-3">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${metode.toLowerCase().includes('qris') ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${metode}</span>
+        </td>
+        <td class="py-3 px-3 text-right font-black text-emerald-600">+ Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
+        <td class="py-3 px-3 text-center">
+          <div class="inline-flex items-center space-x-1">
+            <button onclick="cetakUlangStrukRiwayat('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-600 rounded-lg transition" title="Lihat Struk">
+              <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="bukaModalEditOrder('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 rounded-lg transition" title="Edit Transaksi">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="hapusKeSampah('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-600 rounded-lg transition" title="Hapus ke Tong Sampah">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
   refreshIcons();
+}
+
+document.getElementById('cari-transaksi-keuangan')?.addEventListener('input', renderTabelKeuanganPenjualan);
+
+// ================= RENDER TABEL ORDER =================
+function renderTabelOrder() {
+  const tbody = document.getElementById('order-table-body');
+  const counterEl = document.getElementById('order-info-counter');
+  if (!tbody) return;
+
+  const q = (document.getElementById('cari-order-atas')?.value || '').toLowerCase();
+  const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
+  const filtered = transaksiAktif.filter(o => {
+    const noOrder = (o.order_number || o.id || '').toLowerCase();
+    const nama = (o.customer_name || '').toLowerCase();
+    const meja = (o.table_number || '').toLowerCase();
+    const tipe = (o.order_type || '').toLowerCase();
+    return noOrder.includes(q) || nama.includes(q) || meja.includes(q) || tipe.includes(q);
+  });
+
+  if (counterEl) counterEl.innerText = `Menampilkan ${filtered.length} dari ${transaksiAktif.length} pesanan`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${q ? 'Pesanan tidak ditemukan.' : 'Belum ada daftar order.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(o => {
+    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
+    const waktu = o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+    const pelanggan = o.customer_name ? o.customer_name : (o.table_number ? `Meja ${o.table_number}` : 'Umum');
+    const tipeBadge = o.order_type || 'Dine In';
+    const metode = o.payment_method || 'Tunai';
+    const isQris = metode.toLowerCase().includes('qris');
+
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-3.5 px-3 font-bold text-slate-800">#${orderNo}</td>
+        <td class="py-3.5 px-3 text-slate-400">${waktu}</td>
+        <td class="py-3.5 px-3 font-semibold text-slate-700">
+          ${pelanggan} ${o.table_number && o.customer_name ? `<span class="text-[10px] text-slate-400">(Meja ${o.table_number})</span>` : ''}
+        </td>
+        <td class="py-3.5 px-3">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${tipeBadge === 'Dine In' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}">${tipeBadge}</span>
+        </td>
+        <td class="py-3.5 px-3">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${isQris ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${metode}</span>
+        </td>
+        <td class="py-3.5 px-3 text-right font-black text-emerald-600">Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
+        <td class="py-3.5 px-3 text-center">
+          <div class="inline-flex items-center space-x-1">
+            <button onclick="cetakUlangStrukRiwayat('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-600 rounded-lg transition" title="Lihat Struk">
+              <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="bukaModalEditOrder('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 rounded-lg transition" title="Edit Transaksi">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="hapusKeSampah('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-600 rounded-lg transition" title="Hapus ke Tong Sampah">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  refreshIcons();
+}
+
+document.getElementById('cari-order-atas')?.addEventListener('input', renderTabelOrder);
+
+// ================= RESERVASI =================
+function renderTabelReservasi() {
+  const tbody = document.getElementById('reservasi-table-body');
+  if (!tbody) return;
+
+  const q = (document.getElementById('cari-reservasi')?.value || '').toLowerCase();
+  const filtered = (stateReservasi || []).filter(r => {
+    const nama = (r.customer_name || '').toLowerCase();
+    const meja = (r.table_number || '').toLowerCase();
+    const telp = (r.phone || '').toLowerCase();
+    return nama.includes(q) || meja.includes(q) || telp.includes(q);
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${q ? 'Data reservasi tidak ditemukan.' : 'Belum ada jadwal reservasi.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    const waktu = r.reservation_time ? new Date(r.reservation_time).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-3.5 px-3 font-bold text-slate-800">${r.customer_name}</td>
+        <td class="py-3.5 px-3 text-slate-500 font-medium">${waktu}</td>
+        <td class="py-3.5 px-3">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Meja ${r.table_number || '-'}</span>
+        </td>
+        <td class="py-3.5 px-3 font-semibold text-slate-700">${r.guest_count} Tamu</td>
+        <td class="py-3.5 px-3 text-slate-500 font-mono text-[11px]">${r.phone || '-'}</td>
+        <td class="py-3.5 px-3">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Terkonfirmasi</span>
+        </td>
+        <td class="py-3.5 px-3 text-center">
+          <div class="inline-flex items-center space-x-1">
+            <button onclick="editReservasiById('${r.id}')" class="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 rounded-lg transition" title="Ubah Reservasi">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="hapusReservasi('${r.id}')" class="p-1.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-600 rounded-lg transition" title="Hapus Reservasi">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  refreshIcons();
+}
+
+document.getElementById('cari-reservasi')?.addEventListener('input', renderTabelReservasi);
+
+window.editReservasiById = function(id) {
+  const r = (stateReservasi || []).find(item => item.id === id);
+  if (!r) return;
+
+  document.getElementById('edit-res-id').value = r.id;
+  document.getElementById('modal-res-title').innerText = 'Ubah Reservasi Meja';
+  document.getElementById('res-nama').value = r.customer_name || '';
+  document.getElementById('res-meja').value = r.table_number || '';
+  document.getElementById('res-orang').value = r.guest_count || 2;
+  document.getElementById('res-telp').value = r.phone || '';
+
+  if (r.reservation_time) {
+    const t = new Date(r.reservation_time);
+    t.setMinutes(t.getMinutes() - t.getTimezoneOffset());
+    document.getElementById('res-waktu').value = t.toISOString().slice(0, 16);
+  }
+
+  const modalRes = document.getElementById('modal-reservasi-backdrop');
+  if (modalRes) {
+    modalRes.classList.remove('hidden');
+    modalRes.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.hapusReservasi = async function(id) {
+  if (!confirm('Hapus data reservasi ini?')) return;
+  const { error } = await supabaseClient.from('reservations').delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) {
+    alert('Gagal menghapus: ' + error.message);
+  } else {
+    stateReservasi = stateReservasi.filter(r => r.id !== id);
+    updateSemuaUI();
+  }
+};
+
+document.getElementById('form-reservasi-baru')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const id = document.getElementById('edit-res-id').value;
+  const nama = document.getElementById('res-nama').value.trim();
+  const meja = document.getElementById('res-meja').value.trim();
+  const orang = Number(document.getElementById('res-orang').value) || 2;
+  const telp = document.getElementById('res-telp').value.trim();
+  const waktu = document.getElementById('res-waktu').value;
+
+  const payload = {
+    user_id: currentUser.id,
+    customer_name: nama,
+    table_number: meja,
+    guest_count: orang,
+    phone: telp,
+    reservation_time: waktu,
+    status: 'confirmed'
+  };
+
+  let error = null;
+  if (id) {
+    const res = await supabaseClient.from('reservations').update(payload).eq('id', id).eq('user_id', currentUser.id);
+    error = res.error;
+  } else {
+    const res = await supabaseClient.from('reservations').insert([payload]);
+    error = res.error;
+  }
+
+  if (error) {
+    alert('Gagal simpan reservasi: ' + error.message);
+  } else {
+    tutupModalReservasiManual();
+    muatUlangSemuaData();
+  }
+});
+
+// ================= UPDATE SEMUA UI (DENGAN TRY-CATCH AMAN) =================
+function updateSemuaUI() {
+  try {
+    const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
+    const omzet = transaksiAktif.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
+    const totalPengeluaran = (stateExpenses || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const saldoBersih = omzet - totalPengeluaran;
+
+    const dashOmzetEl = document.getElementById('dash-omzet');
+    if (dashOmzetEl) dashOmzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
+    const dashTrxEl = document.getElementById('dash-transaksi');
+    if (dashTrxEl) dashTrxEl.innerText = transaksiAktif.length;
+    const dashMenuEl = document.getElementById('dash-total-menu');
+    if (dashMenuEl) dashMenuEl.innerText = (daftarProduk || []).length;
+    const dashResEl = document.getElementById('dash-total-reservasi');
+    if (dashResEl) dashResEl.innerText = (stateReservasi || []).length;
+
+    const omzetEl = document.getElementById('keuangan-total-omzet');
+    if (omzetEl) omzetEl.innerText = 'Rp ' + omzet.toLocaleString('id-ID');
+
+    const expEl = document.getElementById('keuangan-total-pengeluaran');
+    if (expEl) expEl.innerText = 'Rp ' + totalPengeluaran.toLocaleString('id-ID');
+
+    const expCountEl = document.getElementById('keuangan-jumlah-pengeluaran');
+    if (expCountEl) expCountEl.innerText = `${(stateExpenses || []).length} transaksi belanja`;
+
+    const saldoEl = document.getElementById('keuangan-saldo-bersih');
+    if (saldoEl) {
+      saldoEl.innerText = 'Rp ' + saldoBersih.toLocaleString('id-ID');
+      saldoEl.className = saldoBersih < 0 
+        ? 'text-3xl font-black text-rose-400 tracking-tight' 
+        : 'text-3xl font-black text-emerald-400 tracking-tight';
+    }
+
+    let tunai = 0, qris = 0;
+    transaksiAktif.forEach(o => {
+      const p = Number(o.total_price) || 0;
+      if ((o.payment_method || '').toLowerCase().includes('qris')) qris += p;
+      else tunai += p;
+    });
+
+    const subTunaiEl = document.getElementById('keuangan-sub-tunai');
+    if (subTunaiEl) subTunaiEl.innerText = 'Rp ' + tunai.toLocaleString('id-ID');
+    const subQrisEl = document.getElementById('keuangan-sub-qris');
+    if (subQrisEl) subQrisEl.innerText = 'Rp ' + qris.toLocaleString('id-ID');
+
+    const totalSampah = (stateOrders || []).filter(o => o.deleted_at !== null && o.deleted_at !== undefined).length;
+    const badgeSampah = document.getElementById('badge-counter-sampah');
+    if (badgeSampah) {
+      if (totalSampah > 0) {
+        badgeSampah.innerText = totalSampah;
+        badgeSampah.classList.remove('hidden');
+      } else {
+        badgeSampah.classList.add('hidden');
+      }
+    }
+
+    // Render masing-masing tabel
+    if (typeof renderTabelRiwayatDashboard === 'function') renderTabelRiwayatDashboard();
+    if (typeof renderTabelPengeluaran === 'function') renderTabelPengeluaran();
+    if (typeof renderTabelKeuanganPenjualan === 'function') renderTabelKeuanganPenjualan();
+    if (typeof renderTabelOrder === 'function') renderTabelOrder();
+    if (typeof renderTabelReservasi === 'function') renderTabelReservasi();
+    if (typeof renderKeranjang === 'function') renderKeranjang();
+
+    refreshIcons();
+  } catch (err) {
+    console.error('Error saat updateSemuaUI:', err);
+  }
 }
 
 // ================= NAVIGASI =================
