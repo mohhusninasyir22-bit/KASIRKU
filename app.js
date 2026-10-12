@@ -1,4 +1,4 @@
-const SUPABASE_URL = '[https://tqpmdiwkcppxzvvguiwk.supabase.co](https://tqpmdiwkcppxzvvguiwk.supabase.co)';
+const SUPABASE_URL = 'https://tqpmdiwkcppxzvvguiwk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcG1kaXdrY3BweHp2dmd1aXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NjU3MDgsImV4cCI6MjEwNzE0MTcwOH0.JEiiVxf5kuiuP4lS1n1sqoqe_xR8q0sgHPQBwF_wAJI';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -153,13 +153,13 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    // Pengecekan Akun yang sedang berada di Tong Sampah
+    // Pengecekan Akun di Tong Sampah
     if (prof.deleted_at && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
       btnAuthSubmit.innerText = 'Masuk ke Kasir';
       authAlert.className = 'mt-4 text-center text-xs p-3.5 rounded-xl font-semibold bg-rose-50 text-rose-700 border border-rose-200';
-      authAlert.innerHTML = `⚠️ <strong>Akun Tidak Aktif!</strong><br>Akun toko Anda telah dinonaktifkan oleh administrator. Silakan hubungi admin.`;
+      authAlert.innerHTML = `⚠️ <strong>Akun Dinonaktifkan!</strong><br>Akun toko Anda berada di tong sampah / dinonaktifkan oleh administrator.`;
       authAlert.classList.remove('hidden');
       return;
     }
@@ -170,19 +170,18 @@ authForm.addEventListener('submit', async (e) => {
       const tglBerakhir = new Date(prof.expires_at);
 
       if (tglSekarang > tglBerakhir) {
-        // Otomatis ubah status di DB menjadi pending karena masa aktif habis
         await supabaseClient.from('user_profiles').update({ status: 'pending' }).eq('id', prof.id);
         prof.status = 'pending';
       }
     }
 
-    // Pengecekan Status Pending (Belum Aktif atau Masa Aktif Habis)
+    // Pengecekan Status Pending
     if (prof.status === 'pending' && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
       btnAuthSubmit.innerText = 'Masuk ke Kasir';
       authAlert.className = 'mt-4 text-center text-xs p-3.5 rounded-xl font-semibold bg-amber-50 text-amber-800 border border-amber-200';
-      authAlert.innerHTML = `⚠️ <strong>Masa Aktif Akun Habis / Belum Aktif!</strong><br>Masa aktif akun toko Anda telah berakhir atau belum disetujui. Silakan hubungi Super Admin untuk memperpanjang durasi aktif akun.`;
+      authAlert.innerHTML = `⚠️ <strong>Akun Belum Aktif / Masa Berlaku Habis!</strong><br>Silakan hubungi Super Admin untuk mengaktifkan akun toko Anda.`;
       authAlert.classList.remove('hidden');
       return;
     }
@@ -714,7 +713,6 @@ window.adminHapusUserPermanen = async function(userId) {
   const konfirmasi = confirm(`PERINGATAN: Toko "${user.store_name}" akan DIHAPUS PERMANEN beserta seluruh data produk & transaksi. Lanjutkan?`);
   if (!konfirmasi) return;
 
-  // Hapus seluruh relasi transaksi dan data toko
   await supabaseClient.from('orders').delete().eq('user_id', userId);
   await supabaseClient.from('products').delete().eq('user_id', userId);
   await supabaseClient.from('reservations').delete().eq('user_id', userId);
@@ -1022,7 +1020,7 @@ window.tanganiUploadFoto = function(event) {
   reader.readAsDataURL(file);
 };
 
-document.getElementById('form-kelola-produk').addEventListener('submit', async (e) => {
+document.getElementById('form-kelola-produk')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentUser) return;
 
@@ -1325,7 +1323,7 @@ window.bukaModalPembayaran = function() {
   if (qrisFotoSupabase) {
     document.getElementById('img-qris-display').src = qrisFotoSupabase;
   } else {
-    document.getElementById('img-qris-display').src = '[https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS)_' + tot;
+    document.getElementById('img-qris-display').src = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=GOPAY_MERCHANT_QRIS_' + tot;
   }
 
   document.getElementById('qris-nominal-text').innerText = 'Total: Rp ' + tot.toLocaleString('id-ID');
@@ -2385,4 +2383,6 @@ document.getElementById('form-reservasi-baru')?.addEventListener('submit', async
   }
 });
 
+// Inisialisasi awal aplikasi
+refreshIcons();
 cekSesiAktif();
