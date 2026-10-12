@@ -31,7 +31,7 @@ function refreshIcons() {
   }
 }
 
-// ================= LOGIK PENAPIS PERIODE KEWANGAN =================
+// ================= LOGIKA FILTER PERIODE KEUANGAN =================
 function cekApakahMasukPeriode(dateString, periode) {
   if (!dateString) return false;
   const tglData = new Date(dateString);
@@ -384,7 +384,7 @@ function renderTabelSampah() {
   const sekarang = new Date();
 
   tbody.innerHTML = listSampah.map(o => {
-    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
+    const orderNo = o.order_number || (o.id ? String(o.id).slice(0, 8) : '-');
     const pelanggan = o.customer_name || (o.table_number ? `Meja ${o.table_number}` : 'Umum');
     
     const tglHapus = new Date(o.deleted_at);
@@ -395,7 +395,7 @@ function renderTabelSampah() {
       <tr class="hover:bg-rose-50/40 transition">
         <td class="py-3 px-2 font-bold text-slate-800">#${orderNo}</td>
         <td class="py-3 px-2 text-slate-600">${pelanggan}</td>
-        <td class="py-3 px-2 font-bold text-slate-800">Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
+        <td class="py-3 px-2 font-bold text-slate-800">Rp ${Number(o.total_price || 0).toLocaleString('id-ID')}</td>
         <td class="py-3 px-2">
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">${sisaHari} hari lagi</span>
         </td>
@@ -922,6 +922,117 @@ async function cekSesiAktif() {
   refreshIcons();
 }
 
+// ================= PANEL SUPER ADMIN =================
+async function muatDataAdmin() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      stateAdminUsers = data;
+      renderTabelAdmin();
+    }
+  } catch (err) {}
+}
+
+function renderTabelAdmin() {
+  const tbody = document.getElementById('table-admin-users-body');
+  if (!tbody) return;
+
+  const usersAktifNonSampah = stateAdminUsers.filter(u => !u.deleted_at);
+  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
+
+  const badgeSampahAdmin = document.getElementById('badge-counter-admin-sampah');
+  if (badgeSampahAdmin) {
+    if (usersSampah.length > 0) {
+      badgeSampahAdmin.innerText = usersSampah.length;
+      badgeSampahAdmin.classList.remove('hidden');
+    } else {
+      badgeSampahAdmin.classList.add('hidden');
+    }
+  }
+
+  const total = usersAktifNonSampah.length;
+  const pending = usersAktifNonSampah.filter(u => u.status === 'pending').length;
+  const active = usersAktifNonSampah.filter(u => u.status === 'active').length;
+
+  document.getElementById('admin-stat-total').innerText = total;
+  document.getElementById('admin-stat-pending').innerText = pending;
+  document.getElementById('admin-stat-active').innerText = active;
+
+  const q = (document.getElementById('cari-user-admin')?.value || '').toLowerCase();
+  const filtered = usersAktifNonSampah.filter(u => {
+    const n = (u.full_name || '').toLowerCase();
+    const s = (u.store_name || '').toLowerCase();
+    const e = (u.email || '').toLowerCase();
+    return n.includes(q) || s.includes(q) || e.includes(q);
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${q ? 'User tidak ditemukan.' : 'Belum ada pendaftar toko.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(u => {
+    const isAdmin = u.role === 'admin';
+    const isPending = u.status === 'pending';
+
+    let teksMasaBerlaku = '-';
+    let isExpired = false;
+
+    if (isAdmin) {
+      teksMasaBerlaku = '<span class="text-indigo-600 font-extrabold text-[11px]">Selamanya (Admin)</span>';
+    } else if (u.expires_at) {
+      const expDate = new Date(u.expires_at);
+      const now = new Date();
+      isExpired = now > expDate;
+      const tglFormatted = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      if (isExpired) {
+        teksMasaBerlaku = `<span class="text-rose-600 font-bold text-[11px]">Kedaluwarsa (${tglFormatted})</span>`;
+      } else {
+        teksMasaBerlaku = `<span class="text-emerald-700 font-bold text-[11px]">s.d ${tglFormatted}</span>`;
+      }
+    } else {
+      teksMasaBerlaku = '<span class="text-slate-400 italic text-[11px]">Belum diatur</span>';
+    }
+
+    let statusBadge = (isPending || isExpired)
+      ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>`
+      : `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`;
+
+    let aksiTombol = `
+      <div class="inline-flex items-center space-x-1.5">
+        ${!isAdmin ? `
+          <button onclick="bukaModalDurasiAdmin('${u.id}')" class="p-1.5 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-xl transition border border-indigo-200 shadow-2xs" title="Atur Masa Aktif Toko">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+          </button>
+          <button onclick="adminBuangUserKeSampah('${u.id}')" class="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition border border-rose-200 shadow-2xs" title="Hapus ke Tong Sampah">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        ` : '<span class="text-[10px] text-slate-400 italic">Super Admin</span>'}
+      </div>
+    `;
+
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-3 px-3 font-bold text-slate-800">${u.full_name}</td>
+        <td class="py-3 px-3 font-semibold text-slate-700">${u.store_name}</td>
+        <td class="py-3 px-3 text-slate-500 font-mono">${u.whatsapp}</td>
+        <td class="py-3 px-3 text-slate-600">${u.email}</td>
+        <td class="py-3 px-3">${teksMasaBerlaku}</td>
+        <td class="py-3 px-3">${statusBadge}</td>
+        <td class="py-3 px-3 text-center">${aksiTombol}</td>
+      </tr>
+    `;
+  }).join('');
+  refreshIcons();
+}
+
+document.getElementById('cari-user-admin')?.addEventListener('input', renderTabelAdmin);
+
 // ================= PRODUK & PENCARIAN REAKTIF =================
 async function muatProduk() {
   if (!currentUser) return;
@@ -1079,10 +1190,10 @@ function renderKategoriTabs() {
         </button>
         <div class="flex items-center pr-1.5 space-x-0.5 opacity-60 hover:opacity-100 transition">
           <button onclick="event.stopPropagation(); editNamaKategori('${k}', ${idx})" class="p-1 rounded-md hover:bg-black/10 transition" title="Ubah Nama">
-            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            <i data-lucide="pencil" class="w-3 h-3"></i>
           </button>
           <button onclick="event.stopPropagation(); hapusKategori('${k}')" class="p-1 rounded-md hover:bg-rose-500 hover:text-white transition" title="Hapus Kategori">
-            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            <i data-lucide="x" class="w-3 h-3"></i>
           </button>
         </div>
       </div>
@@ -1634,7 +1745,7 @@ document.getElementById('btn-konfirmasi-bayar')?.addEventListener('click', async
 
 // ================= STRUK LENGKAP =================
 function bukaModalStruk(orderData, itemsList, uangBayar = null, totalNominal = null, kembalianFix = null) {
-  const orderId = orderData.order_number || (orderData.id ? orderData.id.toString().slice(0, 8) : '-');
+  const orderId = orderData.order_number || (orderData.id ? String(orderData.id).slice(0, 8) : '-');
   const orderTipe = (orderData.order_type || 'Dine In') + 
     (orderData.table_number ? ` (Meja: ${orderData.table_number})` : '') + 
     (orderData.customer_name ? ` - ${orderData.customer_name}` : '');
@@ -1847,9 +1958,9 @@ function renderTabelPengeluaran() {
   const filteredPeriode = (stateExpenses || []).filter(e => cekApakahMasukPeriode(e.created_at, periodeKeuanganAktif));
 
   const filtered = filteredPeriode.filter(e => {
-    const t = (e.title || '').toLowerCase();
-    const c = (e.category || '').toLowerCase();
-    const n = (e.notes || '').toLowerCase();
+    const t = String(e.title || '').toLowerCase();
+    const c = String(e.category || '').toLowerCase();
+    const n = String(e.notes || '').toLowerCase();
     return t.includes(q) || c.includes(q) || n.includes(q);
   });
 
@@ -1898,18 +2009,18 @@ function renderTabelKeuanganPenjualan() {
   const filteredPeriode = transaksiAktif.filter(o => cekApakahMasukPeriode(o.created_at, periodeKeuanganAktif));
 
   const filtered = filteredPeriode.filter(o => {
-    const orderNo = (o.order_number || o.id || '').toLowerCase();
-    const nama = (o.customer_name || '').toLowerCase();
+    const orderNo = String(o.order_number || o.id || '').toLowerCase();
+    const nama = String(o.customer_name || '').toLowerCase();
     return orderNo.includes(q) || nama.includes(q);
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada transaksi penjualan pada periode ini.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">${q ? 'Transaksi penjualan tidak ditemukan.' : 'Belum ada transaksi penjualan pada periode ini.'}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = filtered.map(o => {
-    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
+    const orderNo = o.order_number || (o.id ? String(o.id).slice(0, 8) : '-');
     const waktu = o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
     const pelanggan = o.customer_name ? o.customer_name : (o.table_number ? `Meja ${o.table_number}` : 'Umum');
     const metode = o.payment_method || 'Tunai';
@@ -1922,7 +2033,7 @@ function renderTabelKeuanganPenjualan() {
         <td class="py-3 px-3">
           <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${metode.toLowerCase().includes('qris') ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${metode}</span>
         </td>
-        <td class="py-3 px-3 text-right font-black text-emerald-600">+ Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
+        <td class="py-3 px-3 text-right font-black text-emerald-600">+ Rp ${Number(o.total_price || 0).toLocaleString('id-ID')}</td>
         <td class="py-3 px-3 text-center">
           <div class="inline-flex items-center space-x-1">
             <button onclick="cetakUlangStrukRiwayat('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-600 rounded-lg transition" title="Lihat Struk">
@@ -1953,10 +2064,10 @@ function renderTabelOrder() {
   const q = (document.getElementById('cari-order-atas')?.value || '').toLowerCase();
   const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
   const filtered = transaksiAktif.filter(o => {
-    const noOrder = (o.order_number || o.id || '').toLowerCase();
-    const nama = (o.customer_name || '').toLowerCase();
-    const meja = (o.table_number || '').toLowerCase();
-    const tipe = (o.order_type || '').toLowerCase();
+    const noOrder = String(o.order_number || o.id || '').toLowerCase();
+    const nama = String(o.customer_name || '').toLowerCase();
+    const meja = String(o.table_number || '').toLowerCase();
+    const tipe = String(o.order_type || '').toLowerCase();
     return noOrder.includes(q) || nama.includes(q) || meja.includes(q) || tipe.includes(q);
   });
 
@@ -1968,12 +2079,12 @@ function renderTabelOrder() {
   }
 
   tbody.innerHTML = filtered.map(o => {
-    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
+    const orderNo = o.order_number || (o.id ? String(o.id).slice(0, 8) : '-');
     const waktu = o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
     const pelanggan = o.customer_name ? o.customer_name : (o.table_number ? `Meja ${o.table_number}` : 'Umum');
     const tipeBadge = o.order_type || 'Dine In';
     const metode = o.payment_method || 'Tunai';
-    const isQris = metode.toLowerCase().includes('qris');
+    const isQris = String(metode).toLowerCase().includes('qris');
 
     return `
       <tr class="hover:bg-slate-50 transition">
@@ -1988,7 +2099,7 @@ function renderTabelOrder() {
         <td class="py-3.5 px-3">
           <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${isQris ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${metode}</span>
         </td>
-        <td class="py-3.5 px-3 text-right font-black text-emerald-600">Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
+        <td class="py-3.5 px-3 text-right font-black text-emerald-600">Rp ${Number(o.total_price || 0).toLocaleString('id-ID')}</td>
         <td class="py-3.5 px-3 text-center">
           <div class="inline-flex items-center space-x-1">
             <button onclick="cetakUlangStrukRiwayat('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-600 rounded-lg transition" title="Lihat Struk">
@@ -2017,9 +2128,9 @@ function renderTabelReservasi() {
 
   const q = (document.getElementById('cari-reservasi')?.value || '').toLowerCase();
   const filtered = (stateReservasi || []).filter(r => {
-    const nama = (r.customer_name || '').toLowerCase();
-    const meja = (r.table_number || '').toLowerCase();
-    const telp = (r.phone || '').toLowerCase();
+    const nama = String(r.customer_name || '').toLowerCase();
+    const meja = String(r.table_number || '').toLowerCase();
+    const telp = String(r.phone || '').toLowerCase();
     return nama.includes(q) || meja.includes(q) || telp.includes(q);
   });
 
@@ -2134,12 +2245,89 @@ document.getElementById('form-reservasi-baru')?.addEventListener('submit', async
   }
 });
 
-// ================= UPDATE SEMUA UI (TERMASUK KAD KEWANGAN DINAMIK) =================
+// ================= RENDER RIWAYAT DASHBOARD (DEFENSIVE FIX) =================
+document.getElementById('cari-transaksi-dash')?.addEventListener('input', () => {
+  renderTabelRiwayatDashboard();
+});
+
+function renderTabelRiwayatDashboard() {
+  const tbody = document.getElementById('dash-table-body');
+  if (!tbody) return;
+
+  try {
+    const inputCari = document.getElementById('cari-transaksi-dash');
+    const q = (inputCari ? inputCari.value : '').toLowerCase().trim();
+
+    // Saring transaksi yang aktif (bukan di tong sampah)
+    const filteredOrders = (stateOrders || []).filter(o => {
+      const isNotDeleted = (o.deleted_at === null || o.deleted_at === undefined);
+      if (!isNotDeleted) return false;
+
+      const noOrder = String(o.order_number || o.id || '').toLowerCase();
+      const nama = String(o.customer_name || '').toLowerCase();
+      const meja = String(o.table_number || '').toLowerCase();
+      const tipe = String(o.order_type || '').toLowerCase();
+
+      return noOrder.includes(q) || nama.includes(q) || meja.includes(q) || tipe.includes(q);
+    });
+
+    if (filteredOrders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 font-medium">${q ? 'Tidak ada transaksi yang cocok.' : 'Belum ada transaksi tercatat.'}</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filteredOrders.map(o => {
+      const orderNo = o.order_number || (o.id ? String(o.id).slice(0, 8) : '-');
+      const waktu = o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+      const infoPelanggan = o.customer_name ? o.customer_name : (o.table_number ? `Meja ${o.table_number}` : 'Umum');
+      const tipeBadge = o.order_type || 'Dine In';
+      const metode = o.payment_method || 'Tunai';
+      const isQris = String(metode).toLowerCase().includes('qris');
+
+      return `
+        <tr class="hover:bg-slate-50/80 transition">
+          <td class="py-3 px-3 font-bold text-slate-800">#${orderNo}</td>
+          <td class="py-3 px-3 text-slate-400 text-[11px]">${waktu}</td>
+          <td class="py-3 px-3 font-semibold text-slate-700">
+            ${infoPelanggan} ${o.table_number && o.customer_name ? `<span class="text-[10px] text-slate-400 font-normal">(Meja ${o.table_number})</span>` : ''}
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${tipeBadge === 'Dine In' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}">${tipeBadge}</span>
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${isQris ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${metode}</span>
+          </td>
+          <td class="py-3 px-3 text-right font-black text-emerald-600">Rp ${Number(o.total_price || 0).toLocaleString('id-ID')}</td>
+          <td class="py-3 px-3 text-center">
+            <div class="inline-flex items-center space-x-1">
+              <button onclick="cetakUlangStrukRiwayat('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-600 rounded-lg transition shadow-2xs" title="Lihat Struk">
+                <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="bukaModalEditOrder('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 rounded-lg transition shadow-2xs" title="Edit Transaksi">
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="hapusKeSampah('${o.id}')" class="p-1.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-600 rounded-lg transition shadow-2xs" title="Hapus ke Tong Sampah">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    refreshIcons();
+  } catch (err) {
+    console.error('Error saat render riwayat dashboard:', err);
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada riwayat transaksi.</td></tr>`;
+  }
+}
+
+// ================= UPDATE SEMUA UI (DENGAN TRY-CATCH AMAN) =================
 function updateSemuaUI() {
   try {
     const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
     
-    // Kiraan Dashboard Utama (Keseluruhan)
+    // Perhitungan untuk Dashboard Utama (keseluruhan)
     const omzetDash = transaksiAktif.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
     const dashOmzetEl = document.getElementById('dash-omzet');
     if (dashOmzetEl) dashOmzetEl.innerText = 'Rp ' + omzetDash.toLocaleString('id-ID');
@@ -2150,7 +2338,7 @@ function updateSemuaUI() {
     const dashResEl = document.getElementById('dash-total-reservasi');
     if (dashResEl) dashResEl.innerText = (stateReservasi || []).length;
 
-    // Kiraan KHAS Catatan Kewangan (Mengikut Tempoh: Hari/Minggu/Bulan/Tahun)
+    // Perhitungan KHUSUS Catatan Keuangan (Sesuai Periode: Hari/Minggu/Bulan/Tahun)
     const ordersPeriode = transaksiAktif.filter(o => cekApakahMasukPeriode(o.created_at, periodeKeuanganAktif));
     const expensesPeriode = (stateExpenses || []).filter(e => cekApakahMasukPeriode(e.created_at, periodeKeuanganAktif));
 
@@ -2198,7 +2386,7 @@ function updateSemuaUI() {
       }
     }
 
-    // Render jadual-jadual
+    // Render masing-masing tabel
     if (typeof renderTabelRiwayatDashboard === 'function') renderTabelRiwayatDashboard();
     if (typeof renderTabelPengeluaran === 'function') renderTabelPengeluaran();
     if (typeof renderTabelKeuanganPenjualan === 'function') renderTabelKeuanganPenjualan();
@@ -2338,6 +2526,6 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
   alert('Pengaturan toko berhasil disimpan!');
 });
 
-// Jalankan inisialisasi awal
+// Inisialisasi Aplikasi Saat Halaman Dibuka
 refreshIcons();
 cekSesiAktif();
