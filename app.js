@@ -25,17 +25,16 @@ let scanTargetIsForm = false;
 let varianSuhuDipilih = 'Ice';
 
 function refreshIcons() {
-  if (window.lucide) {
+  if (window.lucide && typeof lucide.createIcons === 'function') {
     try { lucide.createIcons(); } catch(e){}
   }
 }
 
-// ================= RESPONSIVE MOBILE DRAWER & BOTTOM SHEET =================
+// ================= MODAL KONTROL (WINDOW SCOPE EXPORT) =================
 window.toggleMobileMenu = function() {
   const sidebar = document.getElementById('sidebar-app');
   const backdrop = document.getElementById('mobile-sidebar-backdrop');
   if (!sidebar || !backdrop) return;
-
   const isClosed = sidebar.classList.contains('-translate-x-full');
   if (isClosed) {
     sidebar.classList.remove('-translate-x-full');
@@ -86,6 +85,438 @@ window.sinkronkanFormOrder = function(inputEl, field) {
   }
 };
 
+window.bukaModalFormProduk = function(editData = null) {
+  const form = document.getElementById('form-kelola-produk');
+  if (form) form.reset();
+  const idEl = document.getElementById('form-prod-id');
+  if (idEl) idEl.value = '';
+  const base64El = document.getElementById('form-prod-image-base64');
+  if (base64El) base64El.value = '';
+  const imgEl = document.getElementById('preview-foto-img');
+  if (imgEl) { imgEl.src = ''; imgEl.classList.add('hidden'); }
+  const iconEl = document.getElementById('preview-foto-icon');
+  if (iconEl) iconEl.classList.remove('hidden');
+
+  if (editData) {
+    document.getElementById('modal-produk-title').innerText = 'Edit Menu / Produk';
+    if (idEl) idEl.value = editData.id;
+    document.getElementById('form-prod-nama').value = editData.name || '';
+    document.getElementById('form-prod-harga').value = editData.price || '';
+    document.getElementById('form-prod-kategori').value = editData.category || (kategoriList[0] || 'Makanan');
+    document.getElementById('form-prod-barcode').value = editData.barcode || '';
+    if (editData.image_url) {
+      if (base64El) base64El.value = editData.image_url;
+      if (imgEl) { imgEl.src = editData.image_url; imgEl.classList.remove('hidden'); }
+      if (iconEl) iconEl.classList.add('hidden');
+    }
+  } else {
+    document.getElementById('modal-produk-title').innerText = 'Tambah Menu / Produk Baru';
+  }
+
+  const modal = document.getElementById('modal-produk-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalFormProduk = function() {
+  const modal = document.getElementById('modal-produk-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.bukaModalFormPengeluaran = function(editData = null) {
+  const form = document.getElementById('form-kelola-pengeluaran');
+  if (form) form.reset();
+  const idEl = document.getElementById('form-exp-id');
+  if (idEl) idEl.value = '';
+
+  if (editData) {
+    document.getElementById('modal-pengeluaran-title').innerText = 'Ubah Catatan Pengeluaran';
+    if (idEl) idEl.value = editData.id;
+    document.getElementById('form-exp-title').value = editData.title || '';
+    document.getElementById('form-exp-amount').value = editData.amount || '';
+    document.getElementById('form-exp-category').value = editData.category || 'Operasional';
+    document.getElementById('form-exp-notes').value = editData.notes || '';
+  } else {
+    document.getElementById('modal-pengeluaran-title').innerText = 'Catat Pengeluaran Baru';
+  }
+
+  const modal = document.getElementById('modal-pengeluaran-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalFormPengeluaran = function() {
+  const modal = document.getElementById('modal-pengeluaran-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.bukaModalReservasi = function() {
+  const form = document.getElementById('form-reservasi-baru');
+  if (form) form.reset();
+  const idEl = document.getElementById('edit-res-id');
+  if (idEl) idEl.value = '';
+  const title = document.getElementById('modal-res-title');
+  if (title) title.innerText = 'Reservasi Meja Baru';
+
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const waktuEl = document.getElementById('res-waktu');
+  if (waktuEl) waktuEl.value = now.toISOString().slice(0, 16);
+
+  const modal = document.getElementById('modal-reservasi-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalReservasiManual = function() {
+  const modal = document.getElementById('modal-reservasi-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.bukaModalSampah = function() {
+  renderTabelSampah();
+  const modal = document.getElementById('modal-sampah-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalSampah = function() {
+  const modal = document.getElementById('modal-sampah-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.bukaModalEditOrder = function(orderId) {
+  const order = stateOrders.find(o => o.id === orderId);
+  if (!order) return;
+
+  document.getElementById('edit-order-id').value = order.id;
+  document.getElementById('edit-order-nama').value = order.customer_name || '';
+  document.getElementById('edit-order-meja').value = order.table_number || '';
+  document.getElementById('edit-order-tipe').value = order.order_type || 'Dine In';
+  document.getElementById('edit-order-metode').value = order.payment_method || 'Tunai';
+
+  const modal = document.getElementById('modal-edit-order-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+};
+
+window.tutupModalEditOrder = function() {
+  const modal = document.getElementById('modal-edit-order-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.bukaModalScanner = function(forFormInput = false) {
+  scanTargetIsForm = forFormInput;
+  const modal = document.getElementById('modal-scanner-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  if (window.Html5Qrcode) {
+    html5QrScanner = new Html5Qrcode("scanner-reader");
+    html5QrScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        tutupModalScanner();
+        if (scanTargetIsForm) {
+          const bEl = document.getElementById('form-prod-barcode');
+          if (bEl) bEl.value = decodedText;
+        } else {
+          const cpEl = document.getElementById('cari-produk');
+          if (cpEl) cpEl.value = decodedText;
+          filterProduk();
+          const cocok = daftarProduk.find(p => p.barcode === decodedText);
+          if (cocok) mulaiTambahItem(cocok.id);
+        }
+      },
+      () => {}
+    ).catch(err => {
+      alert('Tidak dapat mengakses kamera: ' + err);
+      tutupModalScanner();
+    });
+  }
+};
+
+window.tutupModalScanner = function() {
+  if (html5QrScanner) {
+    html5QrScanner.stop().then(() => {
+      html5QrScanner.clear();
+      html5QrScanner = null;
+    }).catch(() => {});
+  }
+  const modal = document.getElementById('modal-scanner-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.bukaModalLupaSandi = function() {
+  document.getElementById('form-minta-link-reset')?.reset();
+  document.getElementById('form-input-sandi-baru')?.reset();
+  document.getElementById('form-minta-link-reset')?.classList.remove('hidden');
+  document.getElementById('view-menunggu-verifikasi')?.classList.add('hidden');
+  document.getElementById('form-input-sandi-baru')?.classList.add('hidden');
+  document.getElementById('lupa-sandi-alert')?.classList.add('hidden');
+
+  const modal = document.getElementById('modal-lupa-sandi-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalLupaSandi = function() {
+  const modal = document.getElementById('modal-lupa-sandi-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+// ================= MODAL ADMIN DURASI & SAMPAH =================
+window.bukaModalDurasiAdmin = function(userId) {
+  const user = stateAdminUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  document.getElementById('modal-durasi-user-id').value = user.id;
+  document.getElementById('modal-durasi-subtitle').innerText = `${user.store_name} (${user.full_name})`;
+
+  const now = new Date();
+  const startStr = user.active_from ? new Date(user.active_from).toISOString().slice(0, 10) : now.toISOString().slice(0, 10);
+  document.getElementById('input-durasi-start').value = startStr;
+
+  if (user.expires_at) {
+    document.getElementById('input-durasi-end').value = new Date(user.expires_at).toISOString().slice(0, 10);
+  } else {
+    const endDefault = new Date();
+    endDefault.setDate(endDefault.getDate() + 30);
+    document.getElementById('input-durasi-end').value = endDefault.toISOString().slice(0, 10);
+  }
+
+  const modal = document.getElementById('modal-admin-durasi-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalDurasiAdmin = function() {
+  const modal = document.getElementById('modal-admin-durasi-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.setPresetDurasi = function(hari) {
+  const startVal = document.getElementById('input-durasi-start').value || new Date().toISOString().slice(0, 10);
+  const startDate = new Date(startVal);
+  startDate.setDate(startDate.getDate() + hari);
+  document.getElementById('input-durasi-end').value = startDate.toISOString().slice(0, 10);
+};
+
+window.simpanDurasiAdmin = async function() {
+  const userId = document.getElementById('modal-durasi-user-id').value;
+  const startStr = document.getElementById('input-durasi-start').value;
+  const endStr = document.getElementById('input-durasi-end').value;
+
+  if (!startStr || !endStr) {
+    alert('Tanggal mulai dan tanggal berakhir harus diisi!');
+    return;
+  }
+
+  const startDate = new Date(startStr);
+  const endDate = new Date(endStr);
+  endDate.setHours(23, 59, 59, 999);
+
+  if (endDate < startDate) {
+    alert('Tanggal berakhir tidak boleh mendahului tanggal mulai!');
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .update({
+      active_from: startDate.toISOString(),
+      expires_at: endDate.toISOString(),
+      status: 'active'
+    })
+    .eq('id', userId);
+
+  if (error) {
+    alert('Gagal mengatur masa aktif: ' + error.message);
+  } else {
+    const user = stateAdminUsers.find(u => u.id === userId);
+    if (user) {
+      user.active_from = startDate.toISOString();
+      user.expires_at = endDate.toISOString();
+      user.status = 'active';
+    }
+    tutupModalDurasiAdmin();
+    renderTabelAdmin();
+    alert('Masa aktif toko berhasil disimpan!');
+  }
+};
+
+window.adminBuangUserKeSampah = async function(userId) {
+  const user = stateAdminUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  const konfirmasi = confirm(`Pindahkan toko "${user.store_name}" (Pemilik: ${user.full_name}) ke tong sampah? Akun akan disimpan selama 30 hari.`);
+  if (!konfirmasi) return;
+
+  const waktuHapus = new Date().toISOString();
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .update({ deleted_at: waktuHapus })
+    .eq('id', userId);
+
+  if (error) {
+    alert('Gagal memindahkan ke tong sampah: ' + error.message);
+  } else {
+    user.deleted_at = waktuHapus;
+    renderTabelAdmin();
+  }
+};
+
+window.bukaModalSampahAdmin = function() {
+  renderTabelSampahAdmin();
+  const modal = document.getElementById('modal-admin-sampah-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
+};
+
+window.tutupModalSampahAdmin = function() {
+  const modal = document.getElementById('modal-admin-sampah-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+function renderTabelSampahAdmin() {
+  const tbody = document.getElementById('table-admin-sampah-body');
+  if (!tbody) return;
+
+  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
+
+  if (usersSampah.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tong sampah toko kosong.</td></tr>`;
+    return;
+  }
+
+  const sekarang = new Date();
+
+  tbody.innerHTML = usersSampah.map(u => {
+    const tglHapus = new Date(u.deleted_at);
+    const selisihHari = Math.floor((sekarang - tglHapus) / (1000 * 60 * 60 * 24));
+    const sisaHari = Math.max(0, 30 - selisihHari);
+
+    return `
+      <tr class="hover:bg-rose-50/40 transition">
+        <td class="py-3 px-2 font-bold text-slate-800">${u.store_name}</td>
+        <td class="py-3 px-2 font-semibold text-slate-700">${u.full_name}</td>
+        <td class="py-3 px-2 text-slate-500 font-mono text-[11px]">${u.email}</td>
+        <td class="py-3 px-2">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">${sisaHari} hari lagi</span>
+        </td>
+        <td class="py-3 px-2 text-center">
+          <div class="inline-flex items-center space-x-1.5">
+            <button onclick="adminPulihkanUser('${u.id}')" class="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span>Pulihkan</span>
+            </button>
+            <button onclick="adminHapusUserPermanen('${u.id}')" class="bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i><span>Hapus</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  refreshIcons();
+}
+
+window.adminPulihkanUser = async function(userId) {
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .update({ deleted_at: null })
+    .eq('id', userId);
+
+  if (error) {
+    alert('Gagal memulihkan akun toko: ' + error.message);
+  } else {
+    const user = stateAdminUsers.find(u => u.id === userId);
+    if (user) user.deleted_at = null;
+    renderTabelSampahAdmin();
+    renderTabelAdmin();
+    alert('Akun toko berhasil dipulihkan!');
+  }
+};
+
+window.adminHapusUserPermanen = async function(userId) {
+  const user = stateAdminUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  const konfirmasi = confirm(`PERINGATAN: Toko "${user.store_name}" akan DIHAPUS PERMANEN beserta seluruh data produk & transaksi. Lanjutkan?`);
+  if (!konfirmasi) return;
+
+  await supabaseClient.from('orders').delete().eq('user_id', userId);
+  await supabaseClient.from('products').delete().eq('user_id', userId);
+  await supabaseClient.from('reservations').delete().eq('user_id', userId);
+  await supabaseClient.from('expenses').delete().eq('user_id', userId);
+
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .delete()
+    .eq('id', userId);
+
+  if (error) {
+    alert('Gagal menghapus permanen: ' + error.message);
+  } else {
+    stateAdminUsers = stateAdminUsers.filter(u => u.id !== userId);
+    renderTabelSampahAdmin();
+    renderTabelAdmin();
+    alert('Akun toko berhasil dihapus secara permanen.');
+  }
+};
+
 // ================= AUTHENTICATION & MULTI-TENANT ROLE =================
 const viewAuth = document.getElementById('view-auth');
 const viewAdmin = document.getElementById('view-admin');
@@ -99,7 +530,7 @@ const authForm = document.getElementById('auth-form');
 const authAlert = document.getElementById('auth-alert');
 const btnAuthSubmit = document.getElementById('btn-auth-submit');
 
-tabLogin.addEventListener('click', () => {
+tabLogin?.addEventListener('click', () => {
   isLoginMode = true;
   tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white text-emerald-700 shadow-sm transition';
   tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 transition';
@@ -109,7 +540,7 @@ tabLogin.addEventListener('click', () => {
   document.getElementById('auth-subtitle').innerText = 'Masuk ke sistem kasir toko Anda';
 });
 
-tabRegister.addEventListener('click', () => {
+tabRegister?.addEventListener('click', () => {
   isLoginMode = false;
   tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white text-emerald-700 shadow-sm transition';
   tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 transition';
@@ -119,7 +550,7 @@ tabRegister.addEventListener('click', () => {
   document.getElementById('auth-subtitle').innerText = 'Daftarkan toko Anda untuk mulai menggunakan kasir';
 });
 
-authForm.addEventListener('submit', async (e) => {
+authForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('input-email').value.trim();
   const password = document.getElementById('input-password').value;
@@ -140,20 +571,19 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    const { data: prof, error: profErr } = await supabaseClient
+    const { data: prof } = await supabaseClient
       .from('user_profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
 
-    if (profErr || !prof) {
+    if (!prof) {
       currentUser = data.user;
       currentProfile = { role: 'user', status: 'active', store_name: 'Toko Saya' };
       bukaLayarAplikasi();
       return;
     }
 
-    // Pengecekan Akun di Tong Sampah
     if (prof.deleted_at && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
@@ -164,18 +594,15 @@ authForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    // Pengecekan Masa Aktif Toko (Expired Check)
     if (prof.role !== 'admin' && prof.expires_at) {
       const tglSekarang = new Date();
       const tglBerakhir = new Date(prof.expires_at);
-
       if (tglSekarang > tglBerakhir) {
         await supabaseClient.from('user_profiles').update({ status: 'pending' }).eq('id', prof.id);
         prof.status = 'pending';
       }
     }
 
-    // Pengecekan Status Pending
     if (prof.status === 'pending' && prof.role !== 'admin') {
       await supabaseClient.auth.signOut();
       btnAuthSubmit.disabled = false;
@@ -291,8 +718,9 @@ window.keluarSesi = async function() {
   viewAdmin.classList.add('hidden');
   viewPos.classList.add('hidden');
   viewAuth.classList.remove('hidden');
-  document.getElementById('input-password').value = '';
-  authAlert.classList.add('hidden');
+  const pwdInput = document.getElementById('input-password');
+  if (pwdInput) pwdInput.value = '';
+  if (authAlert) authAlert.classList.add('hidden');
   tutupMobileMenu();
   refreshIcons();
 };
@@ -338,90 +766,7 @@ async function cekSesiAktif() {
   refreshIcons();
 }
 
-// ================= FITUR LUPA KATA SANDI =================
-window.bukaModalLupaSandi = function() {
-  document.getElementById('form-minta-link-reset').reset();
-  document.getElementById('form-input-sandi-baru').reset();
-  document.getElementById('form-minta-link-reset').classList.remove('hidden');
-  document.getElementById('view-menunggu-verifikasi').classList.add('hidden');
-  document.getElementById('form-input-sandi-baru').classList.add('hidden');
-  document.getElementById('lupa-sandi-alert').classList.add('hidden');
-
-  document.getElementById('modal-lupa-sandi-backdrop').classList.remove('hidden');
-  document.getElementById('modal-lupa-sandi-backdrop').classList.add('flex');
-  refreshIcons();
-};
-
-window.tutupModalLupaSandi = function() {
-  document.getElementById('modal-lupa-sandi-backdrop').classList.add('hidden');
-  document.getElementById('modal-lupa-sandi-backdrop').classList.remove('flex');
-};
-
-document.getElementById('form-minta-link-reset')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const emailTarget = document.getElementById('lupa-input-email').value.trim();
-  const btn = document.getElementById('btn-kirim-link');
-  const alertEl = document.getElementById('lupa-sandi-alert');
-
-  btn.disabled = true;
-  btn.innerText = 'Mengirim Tautan...';
-  alertEl.classList.add('hidden');
-
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(emailTarget);
-
-  btn.disabled = false;
-  btn.innerText = 'Kirim Tautan Verifikasi';
-
-  if (error) {
-    alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-medium bg-rose-50 text-rose-600 border border-rose-200 block';
-    alertEl.innerText = 'Gagal mengirim email: ' + error.message;
-  } else {
-    document.getElementById('form-minta-link-reset').classList.add('hidden');
-    document.getElementById('view-menunggu-verifikasi').classList.remove('hidden');
-    refreshIcons();
-  }
-});
-
-supabaseClient.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'PASSWORD_RECOVERY') {
-    document.getElementById('modal-lupa-sandi-backdrop').classList.remove('hidden');
-    document.getElementById('modal-lupa-sandi-backdrop').classList.add('flex');
-    document.getElementById('form-minta-link-reset').classList.add('hidden');
-    document.getElementById('view-menunggu-verifikasi').classList.add('hidden');
-    document.getElementById('form-input-sandi-baru').classList.remove('hidden');
-    refreshIcons();
-  }
-});
-
-document.getElementById('form-input-sandi-baru')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const sandiBaru = document.getElementById('lupa-input-pwd-baru').value;
-  const btn = document.getElementById('btn-simpan-sandi-baru');
-  const alertEl = document.getElementById('lupa-sandi-alert');
-
-  btn.disabled = true;
-  btn.innerText = 'Menyimpan Sandi...';
-  alertEl.classList.add('hidden');
-
-  const { error } = await supabaseClient.auth.updateUser({
-    password: sandiBaru
-  });
-
-  btn.disabled = false;
-  btn.innerText = 'Simpan Kata Sandi Baru';
-
-  if (error) {
-    alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-medium bg-rose-50 text-rose-600 border border-rose-200 block';
-    alertEl.innerText = 'Gagal memperbarui sandi: ' + error.message;
-  } else {
-    alert('Kata sandi berhasil diatur ulang! Silakan login dengan kata sandi baru Anda.');
-    tutupModalLupaSandi();
-    await supabaseClient.auth.signOut();
-    window.location.reload();
-  }
-});
-
-// ================= PANEL SUPER ADMIN DENGAN FITUR MASA AKTIF & TONG SAMPAH =================
+// ================= PANEL SUPER ADMIN =================
 async function muatDataAdmin() {
   try {
     const { data, error } = await supabaseClient
@@ -502,7 +847,6 @@ function renderTabelAdmin() {
       ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>`
       : `<span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`;
 
-    // Tombol Aksi menggunakan ID aman (tanpa string escaping yang merusak sintaksis nama)
     let aksiTombol = `
       <div class="inline-flex items-center space-x-1.5">
         ${!isAdmin ? `
@@ -532,206 +876,6 @@ function renderTabelAdmin() {
 }
 
 document.getElementById('cari-user-admin')?.addEventListener('input', renderTabelAdmin);
-
-// ================= MODAL ATUR MASA AKTIF USER =================
-window.bukaModalDurasiAdmin = function(userId) {
-  const user = stateAdminUsers.find(u => u.id === userId);
-  if (!user) return;
-
-  document.getElementById('modal-durasi-user-id').value = user.id;
-  document.getElementById('modal-durasi-subtitle').innerText = `${user.store_name} (${user.full_name})`;
-
-  const now = new Date();
-  const startStr = user.active_from ? new Date(user.active_from).toISOString().slice(0, 10) : now.toISOString().slice(0, 10);
-  document.getElementById('input-durasi-start').value = startStr;
-
-  if (user.expires_at) {
-    document.getElementById('input-durasi-end').value = new Date(user.expires_at).toISOString().slice(0, 10);
-  } else {
-    const endDefault = new Date();
-    endDefault.setDate(endDefault.getDate() + 30);
-    document.getElementById('input-durasi-end').value = endDefault.toISOString().slice(0, 10);
-  }
-
-  document.getElementById('modal-admin-durasi-backdrop').classList.remove('hidden');
-  document.getElementById('modal-admin-durasi-backdrop').classList.add('flex');
-  refreshIcons();
-};
-
-window.tutupModalDurasiAdmin = function() {
-  document.getElementById('modal-admin-durasi-backdrop').classList.add('hidden');
-  document.getElementById('modal-admin-durasi-backdrop').classList.remove('flex');
-};
-
-window.setPresetDurasi = function(hari) {
-  const startVal = document.getElementById('input-durasi-start').value || new Date().toISOString().slice(0, 10);
-  const startDate = new Date(startVal);
-  startDate.setDate(startDate.getDate() + hari);
-  document.getElementById('input-durasi-end').value = startDate.toISOString().slice(0, 10);
-};
-
-window.simpanDurasiAdmin = async function() {
-  const userId = document.getElementById('modal-durasi-user-id').value;
-  const startStr = document.getElementById('input-durasi-start').value;
-  const endStr = document.getElementById('input-durasi-end').value;
-
-  if (!startStr || !endStr) {
-    alert('Tanggal mulai dan tanggal berakhir harus diisi!');
-    return;
-  }
-
-  const startDate = new Date(startStr);
-  const endDate = new Date(endStr);
-  endDate.setHours(23, 59, 59, 999);
-
-  if (endDate < startDate) {
-    alert('Tanggal berakhir tidak boleh mendahului tanggal mulai!');
-    return;
-  }
-
-  const { error } = await supabaseClient
-    .from('user_profiles')
-    .update({
-      active_from: startDate.toISOString(),
-      expires_at: endDate.toISOString(),
-      status: 'active'
-    })
-    .eq('id', userId);
-
-  if (error) {
-    alert('Gagal mengatur masa aktif: ' + error.message);
-  } else {
-    const user = stateAdminUsers.find(u => u.id === userId);
-    if (user) {
-      user.active_from = startDate.toISOString();
-      user.expires_at = endDate.toISOString();
-      user.status = 'active';
-    }
-    tutupModalDurasiAdmin();
-    renderTabelAdmin();
-    alert('Masa aktif toko berhasil disimpan dan akun langsung berstatus aktif!');
-  }
-};
-
-// ================= TONG SAMPAH AKUN TOKO SUPER ADMIN =================
-window.adminBuangUserKeSampah = async function(userId) {
-  const user = stateAdminUsers.find(u => u.id === userId);
-  if (!user) return;
-
-  const konfirmasi = confirm(`Pindahkan toko "${user.store_name}" (Pemilik: ${user.full_name}) ke tong sampah? Akun akan disimpan selama 30 hari.`);
-  if (!konfirmasi) return;
-
-  const waktuHapus = new Date().toISOString();
-  const { error } = await supabaseClient
-    .from('user_profiles')
-    .update({ deleted_at: waktuHapus })
-    .eq('id', userId);
-
-  if (error) {
-    alert('Gagal memindahkan ke tong sampah: ' + error.message);
-  } else {
-    user.deleted_at = waktuHapus;
-    renderTabelAdmin();
-  }
-};
-
-window.bukaModalSampahAdmin = function() {
-  renderTabelSampahAdmin();
-  document.getElementById('modal-admin-sampah-backdrop').classList.remove('hidden');
-  document.getElementById('modal-admin-sampah-backdrop').classList.add('flex');
-  refreshIcons();
-};
-
-window.tutupModalSampahAdmin = function() {
-  document.getElementById('modal-admin-sampah-backdrop').classList.add('hidden');
-  document.getElementById('modal-admin-sampah-backdrop').classList.remove('flex');
-};
-
-function renderTabelSampahAdmin() {
-  const tbody = document.getElementById('table-admin-sampah-body');
-  if (!tbody) return;
-
-  const usersSampah = stateAdminUsers.filter(u => !!u.deleted_at);
-
-  if (usersSampah.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tong sampah toko kosong.</td></tr>`;
-    return;
-  }
-
-  const sekarang = new Date();
-
-  tbody.innerHTML = usersSampah.map(u => {
-    const tglHapus = new Date(u.deleted_at);
-    const selisihHari = Math.floor((sekarang - tglHapus) / (1000 * 60 * 60 * 24));
-    const sisaHari = Math.max(0, 30 - selisihHari);
-
-    return `
-      <tr class="hover:bg-rose-50/40 transition">
-        <td class="py-3 px-2 font-bold text-slate-800">${u.store_name}</td>
-        <td class="py-3 px-2 font-semibold text-slate-700">${u.full_name}</td>
-        <td class="py-3 px-2 text-slate-500 font-mono text-[11px]">${u.email}</td>
-        <td class="py-3 px-2">
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">${sisaHari} hari lagi</span>
-        </td>
-        <td class="py-3 px-2 text-center">
-          <div class="inline-flex items-center space-x-1.5">
-            <button onclick="adminPulihkanUser('${u.id}')" class="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
-              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span>Pulihkan</span>
-            </button>
-            <button onclick="adminHapusUserPermanen('${u.id}')" class="bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
-              <i data-lucide="trash" class="w-3.5 h-3.5"></i><span>Hapus</span>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-  refreshIcons();
-}
-
-window.adminPulihkanUser = async function(userId) {
-  const { error } = await supabaseClient
-    .from('user_profiles')
-    .update({ deleted_at: null })
-    .eq('id', userId);
-
-  if (error) {
-    alert('Gagal memulihkan akun toko: ' + error.message);
-  } else {
-    const user = stateAdminUsers.find(u => u.id === userId);
-    if (user) user.deleted_at = null;
-    renderTabelSampahAdmin();
-    renderTabelAdmin();
-    alert('Akun toko berhasil dipulihkan!');
-  }
-};
-
-window.adminHapusUserPermanen = async function(userId) {
-  const user = stateAdminUsers.find(u => u.id === userId);
-  if (!user) return;
-
-  const konfirmasi = confirm(`PERINGATAN: Toko "${user.store_name}" akan DIHAPUS PERMANEN beserta seluruh data produk & transaksi. Lanjutkan?`);
-  if (!konfirmasi) return;
-
-  await supabaseClient.from('orders').delete().eq('user_id', userId);
-  await supabaseClient.from('products').delete().eq('user_id', userId);
-  await supabaseClient.from('reservations').delete().eq('user_id', userId);
-  await supabaseClient.from('expenses').delete().eq('user_id', userId);
-
-  const { error } = await supabaseClient
-    .from('user_profiles')
-    .delete()
-    .eq('id', userId);
-
-  if (error) {
-    alert('Gagal menghapus permanen: ' + error.message);
-  } else {
-    stateAdminUsers = stateAdminUsers.filter(u => u.id !== userId);
-    renderTabelSampahAdmin();
-    renderTabelAdmin();
-    alert('Akun toko berhasil dihapus secara permanen.');
-  }
-};
 
 // ================= PRODUK & PENCARIAN REAKTIF =================
 async function muatProduk() {
@@ -875,10 +1019,10 @@ function renderKategoriTabs() {
         </button>
         <div class="flex items-center pr-1.5 space-x-0.5 opacity-60 hover:opacity-100 transition">
           <button onclick="event.stopPropagation(); editNamaKategori('${k}', ${idx})" class="p-1 rounded-md hover:bg-black/10 transition" title="Ubah Nama">
-            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            <i data-lucide="pencil" class="w-3 h-3"></i>
           </button>
           <button onclick="event.stopPropagation(); hapusKategori('${k}')" class="p-1 rounded-md hover:bg-rose-500 hover:text-white transition" title="Hapus Kategori">
-            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            <i data-lucide="x" class="w-3 h-3"></i>
           </button>
         </div>
       </div>
@@ -972,41 +1116,6 @@ window.setTipePesanan = function(tipe) {
 };
 
 // ================= FORM PRODUK & FOTO =================
-window.bukaModalFormProduk = function(editData = null) {
-  document.getElementById('form-kelola-produk').reset();
-  document.getElementById('form-prod-id').value = '';
-  document.getElementById('form-prod-image-base64').value = '';
-  document.getElementById('preview-foto-img').src = '';
-  document.getElementById('preview-foto-img').classList.add('hidden');
-  document.getElementById('preview-foto-icon').classList.remove('hidden');
-
-  if (editData) {
-    document.getElementById('modal-produk-title').innerText = 'Edit Menu / Produk';
-    document.getElementById('form-prod-id').value = editData.id;
-    document.getElementById('form-prod-nama').value = editData.name || '';
-    document.getElementById('form-prod-harga').value = editData.price || '';
-    document.getElementById('form-prod-kategori').value = editData.category || (kategoriList[0] || 'Makanan');
-    document.getElementById('form-prod-barcode').value = editData.barcode || '';
-    if (editData.image_url) {
-      document.getElementById('form-prod-image-base64').value = editData.image_url;
-      document.getElementById('preview-foto-img').src = editData.image_url;
-      document.getElementById('preview-foto-img').classList.remove('hidden');
-      document.getElementById('preview-foto-icon').classList.add('hidden');
-    }
-  } else {
-    document.getElementById('modal-produk-title').innerText = 'Tambah Menu / Produk Baru';
-  }
-
-  document.getElementById('modal-produk-backdrop').classList.remove('hidden');
-  document.getElementById('modal-produk-backdrop').classList.add('flex');
-  refreshIcons();
-};
-
-window.tutupModalFormProduk = function() {
-  document.getElementById('modal-produk-backdrop').classList.add('hidden');
-  document.getElementById('modal-produk-backdrop').classList.remove('flex');
-};
-
 window.tanganiUploadFoto = function(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1082,45 +1191,6 @@ window.editProdukById = function(id) {
   if (prod) bukaModalFormProduk(prod);
 };
 
-// ================= SCANNER BARCODE =================
-window.bukaModalScanner = function(forFormInput = false) {
-  scanTargetIsForm = forFormInput;
-  document.getElementById('modal-scanner-backdrop').classList.remove('hidden');
-  document.getElementById('modal-scanner-backdrop').classList.add('flex');
-
-  html5QrScanner = new Html5Qrcode("scanner-reader");
-  html5QrScanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    (decodedText) => {
-      tutupModalScanner();
-      if (scanTargetIsForm) {
-        document.getElementById('form-prod-barcode').value = decodedText;
-      } else {
-        document.getElementById('cari-produk').value = decodedText;
-        filterProduk();
-        const cocok = daftarProduk.find(p => p.barcode === decodedText);
-        if (cocok) mulaiTambahItem(cocok.id);
-      }
-    },
-    () => {}
-  ).catch(err => {
-    alert('Tidak dapat mengakses kamera: ' + err);
-    tutupModalScanner();
-  });
-};
-
-window.tutupModalScanner = function() {
-  if (html5QrScanner) {
-    html5QrScanner.stop().then(() => {
-      html5QrScanner.clear();
-      html5QrScanner = null;
-    }).catch(() => {});
-  }
-  document.getElementById('modal-scanner-backdrop').classList.add('hidden');
-  document.getElementById('modal-scanner-backdrop').classList.remove('flex');
-};
-
 // ================= VARIAN & CATATAN =================
 window.mulaiTambahItem = function(id) {
   const item = daftarProduk.find(p => p.id === id);
@@ -1142,9 +1212,12 @@ window.mulaiTambahItem = function(id) {
     varianSuhuDipilih = null;
   }
 
-  document.getElementById('modal-opsi-item-backdrop').classList.remove('hidden');
-  document.getElementById('modal-opsi-item-backdrop').classList.add('flex');
-  refreshIcons();
+  const modal = document.getElementById('modal-opsi-item-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
 };
 
 window.setVarianSuhu = function(suhu) {
@@ -1163,8 +1236,11 @@ window.setVarianSuhu = function(suhu) {
 };
 
 window.tutupModalOpsiItem = function() {
-  document.getElementById('modal-opsi-item-backdrop').classList.add('hidden');
-  document.getElementById('modal-opsi-item-backdrop').classList.remove('flex');
+  const modal = document.getElementById('modal-opsi-item-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 };
 
 window.konfirmasiTambahDenganOpsi = function() {
@@ -1306,15 +1382,15 @@ function renderKeranjang() {
   refreshIcons();
 }
 
-// ================= MODAL PEMBAYARAN =================
+// ================= PEMBAYARAN =================
 window.bukaModalPembayaran = function() {
   const tot = hitungTotal();
   document.getElementById('bayar-modal-total').innerText = 'Rp ' + tot.toLocaleString('id-ID');
   document.getElementById('input-uang-diterima').value = '';
   hitungKembalian();
 
-  const namaP = document.getElementById('order-nama-pelanggan').value.trim() || document.getElementById('order-nama-pelanggan-mobile')?.value.trim() || '';
-  const mejaP = document.getElementById('order-no-meja').value.trim() || document.getElementById('order-no-meja-mobile')?.value.trim() || '';
+  const namaP = document.getElementById('order-nama-pelanggan')?.value.trim() || document.getElementById('order-nama-pelanggan-mobile')?.value.trim() || '';
+  const mejaP = document.getElementById('order-no-meja')?.value.trim() || document.getElementById('order-no-meja-mobile')?.value.trim() || '';
   
   document.getElementById('struk-preview-tipe').innerText = tipePesananAktif + (mejaP ? ' • ' + mejaP : '');
   document.getElementById('struk-preview-pelanggan').innerText = namaP ? 'Atas Nama: ' + namaP : 'Pelanggan Umum';
@@ -1330,14 +1406,19 @@ window.bukaModalPembayaran = function() {
 
   pilihMetode('Tunai');
   const modalBayar = document.getElementById('modal-bayar-backdrop');
-  modalBayar.classList.remove('hidden');
-  modalBayar.classList.add('flex');
+  if (modalBayar) {
+    modalBayar.classList.remove('hidden');
+    modalBayar.classList.add('flex');
+    refreshIcons();
+  }
 };
 
 window.tutupModalPembayaran = function() {
   const modalBayar = document.getElementById('modal-bayar-backdrop');
-  modalBayar.classList.add('hidden');
-  modalBayar.classList.remove('flex');
+  if (modalBayar) {
+    modalBayar.classList.add('hidden');
+    modalBayar.classList.remove('flex');
+  }
 };
 
 function pilihMetode(metode) {
@@ -1348,15 +1429,15 @@ function pilihMetode(metode) {
   const panN = document.getElementById('panel-nontunai');
 
   if (metode === 'Tunai') {
-    tabT.className = 'py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-700 shadow-sm flex items-center justify-center space-x-1.5 transition';
-    tabN.className = 'py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition';
-    panT.classList.remove('hidden');
-    panN.classList.add('hidden');
+    if (tabT) tabT.className = 'py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-700 shadow-sm flex items-center justify-center space-x-1.5 transition';
+    if (tabN) tabN.className = 'py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition';
+    if (panT) panT.classList.remove('hidden');
+    if (panN) panN.classList.add('hidden');
   } else {
-    tabN.className = 'py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-700 shadow-sm flex items-center justify-center space-x-1.5 transition';
-    tabT.className = 'py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition';
-    panN.classList.remove('hidden');
-    panT.classList.add('hidden');
+    if (tabN) tabN.className = 'py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-700 shadow-sm flex items-center justify-center space-x-1.5 transition';
+    if (tabT) tabT.className = 'py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition';
+    if (panN) panN.classList.remove('hidden');
+    if (panT) panT.classList.add('hidden');
   }
   refreshIcons();
 }
@@ -1373,9 +1454,10 @@ document.getElementById('input-uang-diterima')?.addEventListener('input', hitung
 
 function hitungKembalian() {
   const tot = hitungTotal();
-  const bayar = Number(document.getElementById('input-uang-diterima').value) || 0;
+  const bayar = Number(document.getElementById('input-uang-diterima')?.value) || 0;
   const kembali = bayar - tot;
   const el = document.getElementById('label-kembalian');
+  if (!el) return;
   if (kembali < 0) {
     el.innerText = 'Kurang Rp ' + Math.abs(kembali).toLocaleString('id-ID');
     el.className = 'text-base font-extrabold text-rose-500';
@@ -1398,8 +1480,8 @@ document.getElementById('btn-konfirmasi-bayar')?.addEventListener('click', async
   btnBayar.innerText = 'Menyimpan...';
 
   const orderNumber = 'ORD-' + Date.now().toString().slice(-6);
-  const namaPelanggan = document.getElementById('order-nama-pelanggan').value.trim() || document.getElementById('order-nama-pelanggan-mobile')?.value.trim() || null;
-  const noMeja = document.getElementById('order-no-meja').value.trim() || document.getElementById('order-no-meja-mobile')?.value.trim() || null;
+  const namaPelanggan = document.getElementById('order-nama-pelanggan')?.value.trim() || document.getElementById('order-nama-pelanggan-mobile')?.value.trim() || null;
+  const noMeja = document.getElementById('order-no-meja')?.value.trim() || document.getElementById('order-no-meja-mobile')?.value.trim() || null;
 
   const nominalBayarFinal = (metodeDipilih === 'Tunai') ? bayar : total;
   const nominalKembalianFinal = (metodeDipilih === 'Tunai') ? Math.max(0, bayar - total) : 0;
@@ -1475,10 +1557,14 @@ document.getElementById('btn-konfirmasi-bayar')?.addEventListener('click', async
   bukaModalStruk(newOrder || payload, itemsDetailList, nominalBayarFinal, total, nominalKembalianFinal);
 
   keranjang = [];
-  document.getElementById('order-nama-pelanggan').value = '';
-  if (document.getElementById('order-nama-pelanggan-mobile')) document.getElementById('order-nama-pelanggan-mobile').value = '';
-  document.getElementById('order-no-meja').value = '';
-  if (document.getElementById('order-no-meja-mobile')) document.getElementById('order-no-meja-mobile').value = '';
+  const elNamaDesk = document.getElementById('order-nama-pelanggan');
+  if (elNamaDesk) elNamaDesk.value = '';
+  const elNamaMob = document.getElementById('order-nama-pelanggan-mobile');
+  if (elNamaMob) elNamaMob.value = '';
+  const elMejaDesk = document.getElementById('order-no-meja');
+  if (elMejaDesk) elMejaDesk.value = '';
+  const elMejaMob = document.getElementById('order-no-meja-mobile');
+  if (elMejaMob) elMejaMob.value = '';
   
   renderKeranjang();
   muatUlangSemuaData();
@@ -1559,8 +1645,12 @@ function bukaModalStruk(orderData, itemsList, uangBayar = null, totalNominal = n
     document.getElementById('struk-kembali').innerText = 'Rp ' + Number(kembaliTampil).toLocaleString('id-ID');
   }
 
-  document.getElementById('modal-struk-backdrop').classList.remove('hidden');
-  document.getElementById('modal-struk-backdrop').classList.add('flex');
+  const modal = document.getElementById('modal-struk-backdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    refreshIcons();
+  }
 }
 
 window.cetakUlangStrukRiwayat = async function(orderId) {
@@ -1589,32 +1679,16 @@ window.cetakUlangStrukRiwayat = async function(orderId) {
 };
 
 document.getElementById('btn-tutup-struk')?.addEventListener('click', () => {
-  document.getElementById('modal-struk-backdrop').classList.add('hidden');
-  document.getElementById('modal-struk-backdrop').classList.remove('flex');
+  const modal = document.getElementById('modal-struk-backdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 });
 
 document.getElementById('btn-cetak')?.addEventListener('click', () => window.print());
 
 // ================= EDIT TRANSAKSI =================
-window.bukaModalEditOrder = function(orderId) {
-  const order = stateOrders.find(o => o.id === orderId);
-  if (!order) return;
-
-  document.getElementById('edit-order-id').value = order.id;
-  document.getElementById('edit-order-nama').value = order.customer_name || '';
-  document.getElementById('edit-order-meja').value = order.table_number || '';
-  document.getElementById('edit-order-tipe').value = order.order_type || 'Dine In';
-  document.getElementById('edit-order-metode').value = order.payment_method || 'Tunai';
-
-  document.getElementById('modal-edit-order-backdrop').classList.remove('hidden');
-  document.getElementById('modal-edit-order-backdrop').classList.add('flex');
-};
-
-window.tutupModalEditOrder = function() {
-  document.getElementById('modal-edit-order-backdrop').classList.add('hidden');
-  document.getElementById('modal-edit-order-backdrop').classList.remove('flex');
-};
-
 document.getElementById('form-edit-order')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const orderId = document.getElementById('edit-order-id').value;
@@ -1649,134 +1723,7 @@ document.getElementById('form-edit-order')?.addEventListener('submit', async (e)
   }
 });
 
-// ================= HAPUS KE SAMPAH & PULIHKAN TRANSAKSI KASIR =================
-window.hapusKeSampah = async function(orderId) {
-  if (!confirm('Pindahkan transaksi ini ke tong sampah? Transaksi akan disimpan selama 30 hari.')) return;
-
-  const waktuHapus = new Date().toISOString();
-  const { error } = await supabaseClient
-    .from('orders')
-    .update({ deleted_at: waktuHapus })
-    .eq('id', orderId)
-    .eq('user_id', currentUser.id);
-
-  if (error) {
-    alert('Gagal memindahkan ke sampah: ' + error.message);
-  } else {
-    const order = stateOrders.find(o => o.id === orderId);
-    if (order) order.deleted_at = waktuHapus;
-    updateSemuaUI();
-  }
-};
-
-window.bukaModalSampah = function() {
-  renderTabelSampah();
-  document.getElementById('modal-sampah-backdrop').classList.remove('hidden');
-  document.getElementById('modal-sampah-backdrop').classList.add('flex');
-  refreshIcons();
-};
-
-window.tutupModalSampah = function() {
-  document.getElementById('modal-sampah-backdrop').classList.add('hidden');
-  document.getElementById('modal-sampah-backdrop').classList.remove('flex');
-};
-
-function renderTabelSampah() {
-  const tbody = document.getElementById('table-sampah-body');
-  if (!tbody) return;
-
-  const listSampah = stateOrders.filter(o => o.deleted_at !== null && o.deleted_at !== undefined);
-
-  if (listSampah.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tong sampah kosong.</td></tr>`;
-    return;
-  }
-
-  const sekarang = new Date();
-
-  tbody.innerHTML = listSampah.map(o => {
-    const orderNo = o.order_number || (o.id ? o.id.toString().slice(0, 8) : '-');
-    const pelanggan = o.customer_name || (o.table_number ? `Meja ${o.table_number}` : 'Umum');
-    
-    const tglHapus = new Date(o.deleted_at);
-    const selisihHari = Math.floor((sekarang - tglHapus) / (1000 * 60 * 60 * 24));
-    const sisaHari = Math.max(0, 30 - selisihHari);
-
-    return `
-      <tr class="hover:bg-rose-50/40 transition">
-        <td class="py-3 px-2 font-bold text-slate-800">#${orderNo}</td>
-        <td class="py-3 px-2 text-slate-600">${pelanggan}</td>
-        <td class="py-3 px-2 font-bold text-slate-800">Rp ${Number(o.total_price).toLocaleString('id-ID')}</td>
-        <td class="py-3 px-2">
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">${sisaHari} hari lagi</span>
-        </td>
-        <td class="py-3 px-2 text-center">
-          <div class="inline-flex items-center space-x-1.5">
-            <button onclick="pulihkanTransaksi('${o.id}')" class="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
-              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span>Pulihkan</span>
-            </button>
-            <button onclick="hapusPermanenTransaksi('${o.id}')" class="bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs flex items-center space-x-1">
-              <i data-lucide="trash" class="w-3.5 h-3.5"></i><span>Hapus</span>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-  refreshIcons();
-}
-
-window.pulihkanTransaksi = async function(orderId) {
-  const { error } = await supabaseClient.from('orders').update({ deleted_at: null }).eq('id', orderId).eq('user_id', currentUser.id);
-  if (error) {
-    alert('Gagal memulihkan transaksi: ' + error.message);
-  } else {
-    const order = stateOrders.find(o => o.id === orderId);
-    if (order) order.deleted_at = null;
-    renderTabelSampah();
-    updateSemuaUI();
-  }
-};
-
-window.hapusPermanenTransaksi = async function(orderId) {
-  if (!confirm('Peringatan: Transaksi ini akan DIHAPUS PERMANEN. Lanjutkan?')) return;
-  await supabaseClient.from('order_items').delete().eq('order_id', orderId);
-  const { error } = await supabaseClient.from('orders').delete().eq('id', orderId).eq('user_id', currentUser.id);
-  if (error) {
-    alert('Gagal menghapus permanen: ' + error.message);
-  } else {
-    stateOrders = stateOrders.filter(o => o.id !== orderId);
-    renderTabelSampah();
-    updateSemuaUI();
-  }
-};
-
-// ================= PENGELUARAN (EXPENSES) =================
-window.bukaModalFormPengeluaran = function(editData = null) {
-  document.getElementById('form-kelola-pengeluaran').reset();
-  document.getElementById('form-exp-id').value = '';
-
-  if (editData) {
-    document.getElementById('modal-pengeluaran-title').innerText = 'Ubah Catatan Pengeluaran';
-    document.getElementById('form-exp-id').value = editData.id;
-    document.getElementById('form-exp-title').value = editData.title || '';
-    document.getElementById('form-exp-amount').value = editData.amount || '';
-    document.getElementById('form-exp-category').value = editData.category || 'Operasional';
-    document.getElementById('form-exp-notes').value = editData.notes || '';
-  } else {
-    document.getElementById('modal-pengeluaran-title').innerText = 'Catat Pengeluaran Baru';
-  }
-
-  document.getElementById('modal-pengeluaran-backdrop').classList.remove('hidden');
-  document.getElementById('modal-pengeluaran-backdrop').classList.add('flex');
-  refreshIcons();
-};
-
-window.tutupModalFormPengeluaran = function() {
-  document.getElementById('modal-pengeluaran-backdrop').classList.add('hidden');
-  document.getElementById('modal-pengeluaran-backdrop').classList.remove('flex');
-};
-
+// ================= PENGELUARAN =================
 document.getElementById('form-kelola-pengeluaran')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentUser) return;
@@ -1993,7 +1940,7 @@ function renderTabelOrder() {
 
 document.getElementById('cari-order-atas')?.addEventListener('input', renderTabelOrder);
 
-// ================= RENDER TABEL RESERVASI =================
+// ================= RESERVASI =================
 function renderTabelReservasi() {
   const tbody = document.getElementById('reservasi-table-body');
   if (!tbody) return;
@@ -2061,8 +2008,11 @@ window.editReservasiById = function(id) {
   }
 
   const modalRes = document.getElementById('modal-reservasi-backdrop');
-  modalRes.classList.remove('hidden');
-  modalRes.classList.add('flex');
+  if (modalRes) {
+    modalRes.classList.remove('hidden');
+    modalRes.classList.add('flex');
+    refreshIcons();
+  }
 };
 
 window.hapusReservasi = async function(id) {
@@ -2076,11 +2026,43 @@ window.hapusReservasi = async function(id) {
   }
 };
 
-window.tutupModalReservasiManual = function() {
-  const modalRes = document.getElementById('modal-reservasi-backdrop');
-  modalRes.classList.add('hidden');
-  modalRes.classList.remove('flex');
-};
+document.getElementById('form-reservasi-baru')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const id = document.getElementById('edit-res-id').value;
+  const nama = document.getElementById('res-nama').value.trim();
+  const meja = document.getElementById('res-meja').value.trim();
+  const orang = Number(document.getElementById('res-orang').value) || 2;
+  const telp = document.getElementById('res-telp').value.trim();
+  const waktu = document.getElementById('res-waktu').value;
+
+  const payload = {
+    user_id: currentUser.id,
+    customer_name: nama,
+    table_number: meja,
+    guest_count: orang,
+    phone: telp,
+    reservation_time: waktu,
+    status: 'confirmed'
+  };
+
+  let error = null;
+  if (id) {
+    const res = await supabaseClient.from('reservations').update(payload).eq('id', id).eq('user_id', currentUser.id);
+    error = res.error;
+  } else {
+    const res = await supabaseClient.from('reservations').insert([payload]);
+    error = res.error;
+  }
+
+  if (error) {
+    alert('Gagal simpan reservasi: ' + error.message);
+  } else {
+    tutupModalReservasiManual();
+    muatUlangSemuaData();
+  }
+});
 
 // ================= RENDER RIWAYAT DASHBOARD =================
 document.getElementById('cari-transaksi-dash')?.addEventListener('input', () => {
@@ -2091,7 +2073,7 @@ function renderTabelRiwayatDashboard() {
   const tbody = document.getElementById('dash-table-body');
   if (!tbody) return;
 
-  const q = (document.getElementById('cari-transaksi-dash').value || '').toLowerCase();
+  const q = (document.getElementById('cari-transaksi-dash')?.value || '').toLowerCase();
   const filteredOrders = stateOrders.filter(o => {
     const isNotDeleted = (o.deleted_at === null || o.deleted_at === undefined);
     const noOrder = (o.order_number || o.id || '').toLowerCase();
@@ -2228,7 +2210,7 @@ window.pindahTab = function(tabName) {
   muatUlangSemuaData();
 };
 
-// ================= PENGATURAN TOKO & SYNC CLOUD SUPABASE =================
+// ================= PENGATURAN TOKO =================
 const inputToko = document.getElementById('setting-nama-toko');
 const inputFooter = document.getElementById('setting-footer-struk');
 
@@ -2248,7 +2230,8 @@ function inisialisasiPengaturan() {
 
   const cloudQris = currentProfile?.qris_image || localStorage.getItem('pos_qris_foto_base64');
   if (cloudQris) {
-    document.getElementById('setting-qris-base64').value = cloudQris;
+    const qrisField = document.getElementById('setting-qris-base64');
+    if (qrisField) qrisField.value = cloudQris;
     const previewImg = document.getElementById('preview-setting-qris-img');
     const placeholder = document.getElementById('preview-setting-qris-placeholder');
     if (previewImg && placeholder) {
@@ -2269,9 +2252,11 @@ window.tanganiUploadQRISGaleri = function(event) {
     document.getElementById('setting-qris-base64').value = base64;
     const previewImg = document.getElementById('preview-setting-qris-img');
     const placeholder = document.getElementById('preview-setting-qris-placeholder');
-    previewImg.src = base64;
-    previewImg.classList.remove('hidden');
-    placeholder.classList.add('hidden');
+    if (previewImg && placeholder) {
+      previewImg.src = base64;
+      previewImg.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    }
   };
   reader.readAsDataURL(file);
 };
@@ -2324,65 +2309,6 @@ document.getElementById('btn-simpan-pengaturan')?.addEventListener('click', asyn
   alert('Pengaturan toko berhasil disimpan!');
 });
 
-// ================= RESERVASI =================
-const modalRes = document.getElementById('modal-reservasi-backdrop');
-document.getElementById('btn-buka-modal-reservasi')?.addEventListener('click', () => {
-  document.getElementById('form-reservasi-baru').reset();
-  document.getElementById('edit-res-id').value = '';
-  document.getElementById('modal-res-title').innerText = 'Reservasi Meja Baru';
-
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  document.getElementById('res-waktu').value = now.toISOString().slice(0, 16);
-  modalRes.classList.remove('hidden');
-  modalRes.classList.add('flex');
-});
-
-document.getElementById('btn-tutup-reservasi')?.addEventListener('click', () => {
-  modalRes.classList.add('hidden');
-  modalRes.classList.remove('flex');
-});
-
-document.getElementById('form-reservasi-baru')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (!currentUser) return;
-
-  const id = document.getElementById('edit-res-id').value;
-  const nama = document.getElementById('res-nama').value.trim();
-  const meja = document.getElementById('res-meja').value.trim();
-  const orang = Number(document.getElementById('res-orang').value) || 2;
-  const telp = document.getElementById('res-telp').value.trim();
-  const waktu = document.getElementById('res-waktu').value;
-
-  const payload = {
-    user_id: currentUser.id,
-    customer_name: nama,
-    table_number: meja,
-    guest_count: orang,
-    phone: telp,
-    reservation_time: waktu,
-    status: 'confirmed'
-  };
-
-  let error = null;
-  if (id) {
-    const res = await supabaseClient.from('reservations').update(payload).eq('id', id).eq('user_id', currentUser.id);
-    error = res.error;
-  } else {
-    const res = await supabaseClient.from('reservations').insert([payload]);
-    error = res.error;
-  }
-
-  if (error) {
-    alert('Gagal simpan reservasi: ' + error.message);
-  } else {
-    document.getElementById('form-reservasi-baru').reset();
-    modalRes.classList.add('hidden');
-    modalRes.classList.remove('flex');
-    muatUlangSemuaData();
-  }
-});
-
-// Inisialisasi awal aplikasi
+// Jalankan inisialisasi awal
 refreshIcons();
 cekSesiAktif();
