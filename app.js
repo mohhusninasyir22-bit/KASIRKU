@@ -308,6 +308,7 @@ window.tutupModalScanner = function() {
   }
 };
 
+// ================= MODAL & SISTEM LUPA KATA SANDI (DILENGKAPI VALIDASI KEAMANAN) =================
 window.bukaModalLupaSandi = function() {
   document.getElementById('form-minta-link-reset')?.reset();
   document.getElementById('form-input-sandi-baru')?.reset();
@@ -331,6 +332,119 @@ window.tutupModalLupaSandi = function() {
     modal.classList.remove('flex');
   }
 };
+
+document.getElementById('form-minta-link-reset')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const emailInput = document.getElementById('lupa-input-email').value.trim();
+  const alertEl = document.getElementById('lupa-sandi-alert');
+  const btnKirim = document.getElementById('btn-kirim-link');
+
+  if (alertEl) alertEl.classList.add('hidden');
+  btnKirim.disabled = true;
+  btnKirim.innerText = 'Memverifikasi email...';
+
+  try {
+    // 1. KEAMANAN: Pastikan email memang terdaftar di tabel user_profiles
+    const { data: userToko, error: errCek } = await supabaseClient
+      .from('user_profiles')
+      .select('id, email')
+      .eq('email', emailInput)
+      .maybeSingle();
+
+    if (errCek || !userToko) {
+      btnKirim.disabled = false;
+      btnKirim.innerText = 'Kirim Tautan Verifikasi';
+      if (alertEl) {
+        alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border border-rose-200';
+        alertEl.innerText = 'Email tidak terdaftar di sistem toko kasir!';
+        alertEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    // 2. Email valid & terdaftar, kirim tautan reset kata sandi
+    btnKirim.innerText = 'Mengirim tautan...';
+    const redirectUrl = window.location.origin;
+
+    const { error: errReset } = await supabaseClient.auth.resetPasswordForEmail(emailInput, {
+      redirectTo: redirectUrl
+    });
+
+    if (errReset) {
+      btnKirim.disabled = false;
+      btnKirim.innerText = 'Kirim Tautan Verifikasi';
+      if (alertEl) {
+        alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border border-rose-200';
+        alertEl.innerText = 'Gagal mengirim email: ' + errReset.message;
+        alertEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    // Tampilkan tampilan menunggu verifikasi
+    document.getElementById('form-minta-link-reset')?.classList.add('hidden');
+    document.getElementById('view-menunggu-verifikasi')?.classList.remove('hidden');
+    refreshIcons();
+
+  } catch (err) {
+    btnKirim.disabled = false;
+    btnKirim.innerText = 'Kirim Tautan Verifikasi';
+    if (alertEl) {
+      alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border border-rose-200';
+      alertEl.innerText = 'Terjadi kesalahan sistem: ' + err.message;
+      alertEl.classList.remove('hidden');
+    }
+  }
+});
+
+document.getElementById('form-input-sandi-baru')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const passwordBaru = document.getElementById('lupa-input-pwd-baru').value;
+  const alertEl = document.getElementById('lupa-sandi-alert');
+  const btnSimpan = document.getElementById('btn-simpan-sandi-baru');
+
+  if (alertEl) alertEl.classList.add('hidden');
+  btnSimpan.disabled = true;
+  btnSimpan.innerText = 'Menyimpan kata sandi...';
+
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password: passwordBaru });
+    if (error) {
+      btnSimpan.disabled = false;
+      btnSimpan.innerText = 'Simpan Kata Sandi Baru';
+      if (alertEl) {
+        alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border border-rose-200';
+        alertEl.innerText = 'Gagal menyimpan sandi: ' + error.message;
+        alertEl.classList.remove('hidden');
+      }
+    } else {
+      btnSimpan.disabled = false;
+      btnSimpan.innerText = 'Simpan Kata Sandi Baru';
+      alert('Kata sandi berhasil diperbarui! Silakan masuk kembali.');
+      tutupModalLupaSandi();
+      await keluarSesi();
+    }
+  } catch (err) {
+    btnSimpan.disabled = false;
+    btnSimpan.innerText = 'Simpan Kata Sandi Baru';
+    if (alertEl) {
+      alertEl.className = 'text-[11px] p-2.5 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border border-rose-200';
+      alertEl.innerText = 'Terjadi kesalahan: ' + err.message;
+      alertEl.classList.remove('hidden');
+    }
+  }
+});
+
+// Deteksi saat pengguna membuka web dari tautan verifikasi email reset password
+supabaseClient.auth.onAuthStateChange(async (event) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    bukaModalLupaSandi();
+    document.getElementById('form-minta-link-reset')?.classList.add('hidden');
+    document.getElementById('view-menunggu-verifikasi')?.classList.add('hidden');
+    document.getElementById('form-input-sandi-baru')?.classList.remove('hidden');
+    refreshIcons();
+  }
+});
 
 // ================= FITUR TONG SAMPAH TRANSAKSI KASIR =================
 window.hapusKeSampah = async function(orderId) {
@@ -922,7 +1036,7 @@ async function cekSesiAktif() {
   refreshIcons();
 }
 
-// ================= PANEL SUPER ADMIN =================
+// ================= PANEL SUPER ADMIN (DETEKSI OTOMATIS EXPIRED & PENDING) =================
 async function muatDataAdmin() {
   try {
     const { data, error } = await supabaseClient
@@ -954,9 +1068,23 @@ function renderTabelAdmin() {
     }
   }
 
+  const sekarang = new Date();
   const total = usersAktifNonSampah.length;
-  const pending = usersAktifNonSampah.filter(u => u.status === 'pending').length;
-  const active = usersAktifNonSampah.filter(u => u.status === 'active').length;
+
+  // Hitung pending otomatis jika status database 'pending' ATAU masa aktif sudah lewat
+  const pending = usersAktifNonSampah.filter(u => {
+    if (u.role === 'admin') return false;
+    const isExplicitPending = u.status === 'pending';
+    const isExpired = u.expires_at && (sekarang > new Date(u.expires_at));
+    return isExplicitPending || isExpired;
+  }).length;
+
+  // Toko aktif: Toko dengan status 'active' dan belum kedaluwarsa
+  const active = usersAktifNonSampah.filter(u => {
+    if (u.role === 'admin') return true;
+    const isNotExpired = !u.expires_at || (sekarang <= new Date(u.expires_at));
+    return u.status === 'active' && isNotExpired;
+  }).length;
 
   document.getElementById('admin-stat-total').innerText = total;
   document.getElementById('admin-stat-pending').innerText = pending;
@@ -986,8 +1114,7 @@ function renderTabelAdmin() {
       teksMasaBerlaku = '<span class="text-indigo-600 font-extrabold text-[11px]">Selamanya (Admin)</span>';
     } else if (u.expires_at) {
       const expDate = new Date(u.expires_at);
-      const now = new Date();
-      isExpired = now > expDate;
+      isExpired = sekarang > expDate;
       const tglFormatted = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
       if (isExpired) {
@@ -1190,10 +1317,10 @@ function renderKategoriTabs() {
         </button>
         <div class="flex items-center pr-1.5 space-x-0.5 opacity-60 hover:opacity-100 transition">
           <button onclick="event.stopPropagation(); editNamaKategori('${k}', ${idx})" class="p-1 rounded-md hover:bg-black/10 transition" title="Ubah Nama">
-            <i data-lucide="pencil" class="w-3 h-3"></i>
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
           </button>
           <button onclick="event.stopPropagation(); hapusKategori('${k}')" class="p-1 rounded-md hover:bg-rose-500 hover:text-white transition" title="Hapus Kategori">
-            <i data-lucide="x" class="w-3 h-3"></i>
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       </div>
@@ -2245,7 +2372,7 @@ document.getElementById('form-reservasi-baru')?.addEventListener('submit', async
   }
 });
 
-// ================= RENDER RIWAYAT DASHBOARD (DEFENSIVE FIX) =================
+// ================= RENDER RIWAYAT DASHBOARD =================
 document.getElementById('cari-transaksi-dash')?.addEventListener('input', () => {
   renderTabelRiwayatDashboard();
 });
@@ -2322,12 +2449,12 @@ function renderTabelRiwayatDashboard() {
   }
 }
 
-// ================= UPDATE SEMUA UI (DENGAN TRY-CATCH AMAN) =================
+// ================= UPDATE SEMUA UI (DENGAN PERIODE & DEFENSIVE CHECKS) =================
 function updateSemuaUI() {
   try {
     const transaksiAktif = (stateOrders || []).filter(o => o.deleted_at === null || o.deleted_at === undefined);
     
-    // Perhitungan untuk Dashboard Utama (keseluruhan)
+    // Perhitungan Dashboard Ringkasan Utama (Keseluruhan)
     const omzetDash = transaksiAktif.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
     const dashOmzetEl = document.getElementById('dash-omzet');
     if (dashOmzetEl) dashOmzetEl.innerText = 'Rp ' + omzetDash.toLocaleString('id-ID');
